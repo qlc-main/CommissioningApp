@@ -1,0 +1,301 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Hellang.MessageBus</name>
+    </assembly>
+    <members>
+        <member name="M:Hellang.MessageBus.HelperExtensions.HasAttribute``1(System.Reflection.MemberInfo)">
+            <summary>
+            Determines whether the specified member info has an attribute of the specified type.
+            </summary>
+            <typeparam name="T">The type of attribute to find.</typeparam>
+            <param name="memberInfo">The member info.</param>
+            <returns>
+              <c>true</c> if the specified member info has an attribute of the specified type; otherwise, <c>false</c>.
+            </returns>
+        </member>
+        <member name="M:Hellang.MessageBus.HelperExtensions.GetMessageTypes(System.Type)">
+            <summary>
+            Gets the message types from all the handle interfaces of the specified type.
+            </summary>
+            <param name="type">The type.</param>
+            <returns>List of message types.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.HelperExtensions.ForEach``1(System.Collections.Generic.IEnumerable{``0},System.Action{``0})">
+            <summary>
+            Applies the specified acion on all items in the specified list.
+            </summary>
+            <typeparam name="T">The type of items.</typeparam>
+            <param name="source">The source.</param>
+            <param name="action">The action.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.HelperExtensions.RemoveAll``1(System.Collections.Generic.IList{``0},System.Func{``0,System.Boolean})">
+            <summary>
+            Removes all items in the specified list which matches the specified predicate.
+            </summary>
+            <typeparam name="T">The type of items.</typeparam>
+            <param name="list">The list.</param>
+            <param name="predicate">The predicate.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.HelperExtensions.GetHandleMethodFor(System.Type,System.Type)">
+            <summary>
+            Gets the handle method for the specified message type.
+            </summary>
+            <param name="type">The type.</param>
+            <param name="messageType">Type of the message.</param>
+            <returns>The handle method for the specified message type or null.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.HelperExtensions.FirstGenericArgument(System.Type)">
+            <summary>
+            Gets the first generic argument of the specified type.
+            </summary>
+            <param name="type">The type.</param>
+            <returns>The first generic argument of the specified type.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.HelperExtensions.GetHandleInterfaces(System.Type)">
+            <summary>
+            Gets the handle interfaces for the specified type.
+            </summary>
+            <param name="type">The type.</param>
+            <returns>List of interface types.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.HelperExtensions.IsHandleInterface(System.Type)">
+            <summary>
+            Determines whether the specified type is a handle interface.
+            </summary>
+            <param name="type">The type.</param>
+            <returns>
+              <c>true</c> if the specified type is a handle interface; otherwise, <c>false</c>.
+            </returns>
+        </member>
+        <member name="M:Hellang.MessageBus.HelperExtensions.IsHandleMethodFor(System.Reflection.MethodInfo,System.Type)">
+            <summary>
+            Determines whether the specified method is a handler method for the specified message type.
+            </summary>
+            <param name="method">The method.</param>
+            <param name="messageType">Type of the message.</param>
+            <returns>
+              <c>true</c> if the specified method is a handler method for the specified message type; otherwise, <c>false</c>.
+            </returns>
+        </member>
+        <member name="M:Hellang.MessageBus.HelperExtensions.HasSingleParameterOfType(System.Reflection.MethodBase,System.Type)">
+            <summary>
+            Determines whether the specified method has a single parameter of the specified type.
+            </summary>
+            <param name="method">The method.</param>
+            <param name="parameterType">Type of the parameter.</param>
+            <returns>
+              <c>true</c> if the specified method has a single parameter of the specified type; otherwise, <c>false</c>.
+            </returns>
+        </member>
+        <member name="T:Hellang.MessageBus.IHideObjectMembers">
+            <summary>
+            Interface for hiding object members.
+            </summary>
+        </member>
+        <member name="M:Hellang.MessageBus.IHideObjectMembers.GetType">
+            <summary>
+            Gets the <see cref="T:System.Type" /> of the current instance.
+            </summary>
+            <returns>Type.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.IHideObjectMembers.GetHashCode">
+            <summary>
+            Returns a hash code for this instance.
+            </summary>
+            <returns>A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.IHideObjectMembers.ToString">
+            <summary>
+            Returns a <see cref="T:System.String" /> that represents this instance.
+            </summary>
+            <returns>A <see cref="T:System.String" /> that represents this instance.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.IHideObjectMembers.Equals(System.Object)">
+            <summary>
+            Determines whether the specified <see cref="T:System.Object" /> is equal to this instance.
+            </summary>
+            <param name="obj">The <see cref="T:System.Object" /> to compare with this instance.</param>
+            <returns><c>true</c> if the specified <see cref="T:System.Object" /> is equal to this instance; otherwise, <c>false</c>.</returns>
+        </member>
+        <member name="T:Hellang.MessageBus.IMessageBus">
+            <summary>
+            Enables loosely-coupled publication of and subscription to messages.
+            </summary>
+        </member>
+        <member name="M:Hellang.MessageBus.IMessageBus.Subscribe(System.Object)">
+            <summary>
+            Subscribes the specified target to all messages declared
+            through implementations of <see cref="T:Hellang.MessageBus.IHandle`1"/>.
+            </summary>
+            <param name="target">The target to subscribe for event publication.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.IMessageBus.Unsubscribe(System.Object)">
+            <summary>
+            Unsubscribes the specified target from all events.
+            </summary>
+            <param name="target">The target to unsubscribe.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.IMessageBus.Publish``1">
+            <summary>
+            Publishes a new message of the given message type.
+            </summary>
+            <typeparam name="T">The type of message to publish.</typeparam>
+        </member>
+        <member name="M:Hellang.MessageBus.IMessageBus.Publish``1(``0)">
+            <summary>
+            Publishes the specified message.
+            </summary>
+            <typeparam name="T">The type of message to publish</typeparam>
+            <param name="message">The message.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.IMessageBus.Clear">
+            <summary>
+            Clears all subscribers.
+            </summary>
+        </member>
+        <member name="T:Hellang.MessageBus.IHandle">
+            <summary>
+            A marker interface for classes that can subscribe to messages.
+            </summary>
+        </member>
+        <member name="T:Hellang.MessageBus.IHandle`1">
+            <summary>
+            Denotes a class which can handle a particular type of message.
+            </summary>
+            <typeparam name="T">The type of message to handle.</typeparam>
+        </member>
+        <member name="M:Hellang.MessageBus.IHandle`1.Handle(`0)">
+            <summary>
+            Handles the given message.
+            </summary>
+            <param name="message">The message.</param>
+        </member>
+        <member name="T:Hellang.MessageBus.HandleOnUIThreadAttribute">
+            <summary>
+            Attribute for specifying that the message
+            handling should be done on the UI thread.
+            </summary>
+        </member>
+        <member name="T:Hellang.MessageBus.MessageBus">
+            <summary>
+            Enables loosely-coupled publication of and subscription to messages.
+            </summary>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:Hellang.MessageBus.MessageBus" /> class without UI thread marshalling.
+            </summary>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.#ctor(System.Action{System.Action})">
+            <summary>
+            Initializes a new instance of the <see cref="T:Hellang.MessageBus.MessageBus" /> class.
+            </summary>
+            <param name="uiThreadMarshaller">The action for marshalling invocation to the UI thread.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Subscribe(System.Object)">
+            <summary>
+            Subscribes the specified target to all messages declared
+            through implementations of <see cref="T:Hellang.MessageBus.IHandle`1" />.
+            </summary>
+            <param name="target">The target to subscribe for event publication.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Unsubscribe(System.Object)">
+            <summary>
+            Unsubscribes the specified target from all events.
+            </summary>
+            <param name="target">The target to unsubscribe.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Publish``1">
+            <summary>
+            Publishes a new message of the given message type.
+            </summary>
+            <typeparam name="T">The type of message to publish.</typeparam>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Publish``1(``0)">
+            <summary>
+            Publishes the specified message and removes all dead subscribers.
+            </summary>
+            <typeparam name="T">The type of message to publish.</typeparam>
+            <param name="message">The message.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Clear">
+            <summary>
+            Clears all subscribers.
+            </summary>
+        </member>
+        <member name="T:Hellang.MessageBus.MessageBus.Subscriber">
+            <summary>
+            A <see cref="T:Hellang.MessageBus.MessageBus.Subscriber"/> is a wrapper for an instance subscribed
+            to messages from a <see cref="T:Hellang.MessageBus.MessageBus"/>. It can have many handler methods
+            which is represented by the <see cref="T:Hellang.MessageBus.MessageBus.Subscriber.Handler"/> class.
+            </summary>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Subscriber.#ctor(System.Object)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Hellang.MessageBus.MessageBus.Subscriber" /> class.
+            </summary>
+            <param name="target">The target to subscribe.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Subscriber.Matches(System.Object)">
+            <summary>
+            Checks if the specified target matches the subscribed target.
+            </summary>
+            <param name="target">The target to match.</param>
+            <returns>true if the target matches, false otherwise.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Subscriber.Handle``1(``0)">
+            <summary>
+            Handles the specified message.
+            </summary>
+            <typeparam name="T">The type of message to handle.</typeparam>
+            <param name="message">The message.</param>
+            <returns>true if the message was handled successfully, false if the target is dead.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Subscriber.GetHandlers(System.Object)">
+            <summary>
+            Gets the handler methods, either from cache or by reflection.
+            </summary>
+            <param name="target">The target.</param>
+            <returns>List of handlers.</returns>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Subscriber.CreateHandlers(System.Type)">
+            <summary>
+            Gets a list of handlers for the specified type.
+            </summary>
+            <param name="targetType">Type of the target.</param>
+            <returns>
+            List of handlers for the specified type.
+            </returns>
+        </member>
+        <member name="T:Hellang.MessageBus.MessageBus.Subscriber.Handler">
+            <summary>
+            The <see cref="T:Hellang.MessageBus.MessageBus.Subscriber.Handler"/> class is a wrapper 
+            for a method which can handle a specific message type.
+            </summary>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Subscriber.Handler.#ctor(System.Type,System.Reflection.MethodInfo)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Hellang.MessageBus.MessageBus.Subscriber.Handler" /> class.
+            </summary>
+            <param name="messageType">Type of the message.</param>
+            <param name="method">The method.</param>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Subscriber.Handler.CanHandle(System.Type)">
+            <summary>
+            Determines whether this instance can handle the specified message type.
+            </summary>
+            <param name="messageType">Type of the message.</param>
+            <returns>
+              <c>true</c> if this instance can handle the specified message type; otherwise, <c>false</c>.
+            </returns>
+        </member>
+        <member name="M:Hellang.MessageBus.MessageBus.Subscriber.Handler.Invoke(System.Object,System.Object)">
+            <summary>
+            Invokes the handle method on the given target with the given message as argument.
+            </summary>
+            <param name="target">The target.</param>
+            <param name="message">The message.</param>
+        </member>
+    </members>
+</doc>

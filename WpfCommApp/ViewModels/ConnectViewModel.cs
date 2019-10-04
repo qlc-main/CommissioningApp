@@ -15,14 +15,14 @@ namespace WpfCommApp
     {
         #region Fields
         private IAsyncCommand _serialConn;
-        private IAsyncCommand _phaseDiag;
         private ICommand _portSelect;
+        private IAsyncCommand _closeSerial;
 
         private SerialComm _serial;
         private string _comport;
+        private int _idx;
         private bool _busy;
-        private bool _connected;
-        private bool _attempted;
+        private bool? _connected;
         private ObservableCollection<string> _comPorts;
 
         #endregion
@@ -69,34 +69,20 @@ namespace WpfCommApp
             }
         }
 
-        public bool IsConnected
+        public bool? IsConnected
         {
             get
             {
                 return _connected;
             }
-            private set
+            set
             {
                 if (_connected != value)
                 {
                     _connected = value;
                     OnPropertyChanged(nameof(IsConnected));
-                }
-            }
-        }
-
-        public bool IsAttempted
-        {
-            get
-            {
-                return _attempted;
-            }
-            private set
-            {
-                if (_attempted != value)
-                {
-                    _attempted = value;
-                    OnPropertyChanged(nameof(IsAttempted));
+                    OnPropertyChanged(nameof(IsAvailable));
+                    OnPropertyChanged(nameof(IsEnabled));
                 }
             }
         }
@@ -105,9 +91,24 @@ namespace WpfCommApp
         {
             get
             {
-                return !IsBusy;
+                return IsConnected == true;
             }
         }
+
+        public bool IsAvailable
+        {
+            get
+            {
+                return (_connected == true) ? false : true;
+            }
+        }
+
+        public int Idx
+        {
+            get { return _idx; }
+            set { if (_idx != value) _idx = value; }
+        }
+
         public ObservableCollection<string> ComPorts
         {
             get
@@ -120,6 +121,9 @@ namespace WpfCommApp
                     _comPorts = value;
             }
         }
+
+        public bool Completed { get; private set; }
+
         #endregion
 
         #region Commands
@@ -136,19 +140,6 @@ namespace WpfCommApp
             }
         }
 
-        public IAsyncCommand PhaseDiag
-        {
-            get
-            {
-                if (_phaseDiag == null)
-                {
-                    _phaseDiag = new AsyncRelayCommand(PD, CanExec);
-                }
-
-                return _phaseDiag;
-            }
-        }
-
         public ICommand SetPort
         {
             get
@@ -162,14 +153,27 @@ namespace WpfCommApp
             }
         }
 
+        public IAsyncCommand BreakSerial
+        {
+            get
+            {
+                if (_closeSerial == null)
+                    _closeSerial = new AsyncRelayCommand(CloseSerial, CanExec);
+
+                return _closeSerial;
+            }
+        }
         #endregion
 
         #region Constructor
         public ConnectViewModel()
         {
-            ComPorts = new ObservableCollection<string>(SerialPort.GetPortNames().ToList().OrderBy(p => p));
+            COM = "          ";
+            ComPorts = new ObservableCollection<string>(SerialPort.GetPortNames());
             IsBusy = false;
+            IsConnected = null;
         }
+
         #endregion
 
         #region Methods
@@ -178,10 +182,24 @@ namespace WpfCommApp
             try
             {
                 IsBusy = true;
-                _serial = (SerialComm)Application.Current.Properties["serial"];
-                _serial.SetupSerial(_comport);
+                List<SerialComm> comms = (Application.Current.Properties["serial"] as List<SerialComm>);
+                if (comms.Count == 1)
+                {
+                    _serial = comms[0];
+                    Idx = 0;
+                }
+                else
+                {
+                    comms.Add(new SerialComm());
+                    _serial = comms.Last();
+                    Idx = comms.Count - 1;
+                }
+
+                List<Meter> meters = (Application.Current.Properties["meters"] as List<Meter>);
+                string id = _serial.SetupSerial(_comport);
+                meters[Idx].ID = id;
                 IsConnected = true;
-                IsAttempted = true;
+                Completed = true;
 
                 // Send message to enable forward button
                 (Application.Current.Properties["MessageBus"] as MessageBus)
@@ -189,7 +207,21 @@ namespace WpfCommApp
             }
             catch
             {
-                IsAttempted = true;
+                IsConnected = false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task CloseSerial()
+        {
+            try
+            {
+                IsBusy = true;
+                _serial.Close();
+                IsConnected = null;
             }
             finally
             {
@@ -200,19 +232,6 @@ namespace WpfCommApp
         private void ChangePort(string p)
         {
             COM = p;
-        }
-
-        private async Task PD()
-        {
-            try
-            {
-                IsBusy = true;
-                _serial.PD();
-            }
-            finally
-            {
-                IsBusy = false;
-            }
         }
 
         private bool CanExec()

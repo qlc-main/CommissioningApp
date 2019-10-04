@@ -3,10 +3,202 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
+      xmlns:local="clr-namespace:WpfCommApp"
+      xmlns:sys="clr-namespace:System;assembly=mscorlib"
       mc:Ignorable="d" 
       d:DesignHeight="350" d:DesignWidth="800">
 
+    <UserControl.Resources>
+        <local:StringArrayToStringConverter x:Key="StringArrayToStringConverter" />
+        <local:DefaultConvert x:Key="DefaultConvert" />
+        <local:ColorRowConverter x:Key="ColorRowConverter" />
+        <local:BindingProxy x:Key="proxy" Data="{Binding }" />
+
+        <!-- Centers content for textblock elements in Datagrid -->
+        <Style TargetType="TextBlock" x:Key="center">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="5 0" />
+        </Style>
+
+        <!-- Centers content for columns in header row -->
+        <Style TargetType="DataGridColumnHeader" x:Key="centerHeader">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+
+        <!-- Colors Phase Column 1 cells appropriately -->
+        <Style TargetType="DataGridCell" x:Key="altCellA">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
+                            Converter={StaticResource ColorRowConverter}}" 
+                             Value="0">
+                    <Setter Property="Background" Value="Black" />
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
+                            Converter={StaticResource ColorRowConverter}}" 
+                             Value="1">
+                    <Setter Property="Background" Value="Blue" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
+                            Converter={StaticResource ColorRowConverter}}" 
+                             Value="2">
+                    <Setter Property="Background" Value="Red" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Colors Phase Column 2 cells appropriately -->
+        <Style TargetType="DataGridCell" x:Key="altCellB">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
+                            Converter={StaticResource ColorRowConverter}}" 
+                             Value="0">
+                    <Setter Property="Background" Value="Red" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
+                            Converter={StaticResource ColorRowConverter}}" 
+                             Value="1">
+                    <Setter Property="Background" Value="Black" />
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
+                            Converter={StaticResource ColorRowConverter}}" 
+                             Value="2">
+                    <Setter Property="Background" Value="Blue" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+    </UserControl.Resources>
+
     <Grid>
-        
+        <i:Interaction.Triggers>
+            <i:EventTrigger EventName="Loaded">
+                <i:InvokeCommandAction Command="{Binding StartPhaseDiagnostic}" />
+            </i:EventTrigger>
+            <i:EventTrigger EventName="Unloaded">
+                <i:InvokeCommandAction Command="{Binding StopPhaseDiagnostic}" />
+            </i:EventTrigger>
+        </i:Interaction.Triggers>
+
+        <DataGrid Margin="10" Grid.RowSpan="4" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" SelectionUnit="Cell" 
+                    HeadersVisibility="Column" Background="#f2f2f2" RowBackground="white" AlternatingRowBackground="#ffcccb" 
+                    CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" 
+                    ItemsSource="{Binding Channels}" AlternationCount="2">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Meter" Width="Auto" ElementStyle="{StaticResource center}" Binding="{Binding ID, Mode=OneWay}"
+                                    HeaderStyle="{StaticResource centerHeader}" />
+                
+                <DataGridTemplateColumn Header="Phase 1 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180"
+                                        CellStyle="{StaticResource altCellA}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Yellow"
+                                                IsChecked="{Binding Phase1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Margin="5" HorizontalAlignment="Center" Grid.Column="1">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource StringArrayToStringConverter}">
+                                            <Binding Path="Data.PhaseAText[0]" Source="{StaticResource proxy}" />
+                                            <Binding Path="DataContext.ID" RelativeSource="{RelativeSource AncestorType=DataGridRow}" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock Margin="5" HorizontalAlignment="Center" Grid.Column="2">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource StringArrayToStringConverter}">
+                                            <Binding Path="Data.PhaseAText[1]" Source="{StaticResource proxy}" />
+                                            <Binding Path="DataContext.ID" RelativeSource="{RelativeSource AncestorType=DataGridRow}" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock Margin="5" HorizontalAlignment="Center" Grid.Column="3">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource StringArrayToStringConverter}">
+                                            <Binding Path="Data.PhaseAText[2]" Source="{StaticResource proxy}" />
+                                            <Binding Path="DataContext.ID" RelativeSource="{RelativeSource AncestorType=DataGridRow}" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock Margin="5" HorizontalAlignment="Right" Grid.Column="4">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource StringArrayToStringConverter}">
+                                            <Binding Path="Data.PhaseAText[3]" Source="{StaticResource proxy}" />
+                                            <Binding Path="DataContext.ID" RelativeSource="{RelativeSource AncestorType=DataGridRow}" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="Phase 2 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180"
+                                        CellStyle="{StaticResource altCellB}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Yellow"
+                                                IsChecked="{Binding Phase2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Margin="5" HorizontalAlignment="Center" Grid.Column="1">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource StringArrayToStringConverter}">
+                                            <Binding Path="Data.PhaseBText[0]" Source="{StaticResource proxy}" />
+                                            <Binding Path="DataContext.ID" RelativeSource="{RelativeSource AncestorType=DataGridRow}" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock Margin="5" HorizontalAlignment="Center" Grid.Column="2">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource StringArrayToStringConverter}">
+                                            <Binding Path="Data.PhaseBText[1]" Source="{StaticResource proxy}" />
+                                            <Binding Path="DataContext.ID" RelativeSource="{RelativeSource AncestorType=DataGridRow}" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock Margin="5" HorizontalAlignment="Center" Grid.Column="3">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource StringArrayToStringConverter}">
+                                            <Binding Path="Data.PhaseBText[2]" Source="{StaticResource proxy}" />
+                                            <Binding Path="DataContext.ID" RelativeSource="{RelativeSource AncestorType=DataGridRow}" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock Margin="5" HorizontalAlignment="Right" Grid.Column="4">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource StringArrayToStringConverter}">
+                                            <Binding Path="Data.PhaseBText[3]" Source="{StaticResource proxy}" />
+                                            <Binding Path="DataContext.ID" RelativeSource="{RelativeSource AncestorType=DataGridRow}" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTextColumn Header="Breaker" MinWidth="50" Binding="{Binding BreakerNumber}" ElementStyle="{StaticResource center}"
+                                    HeaderStyle="{StaticResource centerHeader}" />
+                
+                <DataGridTextColumn Header="Apartment" MinWidth="50" Binding="{Binding ApartmentNumber}" ElementStyle="{StaticResource center}" 
+                                    HeaderStyle="{StaticResource centerHeader}" />
+            </DataGrid.Columns>
+        </DataGrid>
     </Grid>
 </UserControl>

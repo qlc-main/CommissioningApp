@@ -4,6 +4,7 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:WpfCommApp"
+      xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
       mc:Ignorable="d" 
       d:DesignHeight="350" d:DesignWidth="800">
 
@@ -22,104 +23,50 @@
             </Setter>
         </Style>
 
-        <Style TargetType="local:LedControl">
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="BorderBrush" Value="Black"/>
-            <Setter Property="Margin" Value="5"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="local:LedControl">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition/>
-                            </Grid.ColumnDefinitions>
+        <!-- Sorts the comport collection so I do not have to in the view model-->
+        <CollectionViewSource Source="{Binding ComPorts}" x:Key="cvs">
+            <CollectionViewSource.SortDescriptions>
+                <scm:SortDescription />     <!-- sorts on the item value itself instead of on a property of the item -->
+            </CollectionViewSource.SortDescriptions>
+        </CollectionViewSource>
 
-                            <Grid Background="Transparent" Name="grd"
-                            Margin="{TemplateBinding Padding}"
-                            VerticalAlignment="Stretch" 
-                            Width="{Binding Path=ActualHeight, Mode=OneWay, RelativeSource={RelativeSource Self}}">
-
-                                <Ellipse x:Name="LedBorder" 
-                                    Fill="{TemplateBinding Background}"
-                                    Stroke="{TemplateBinding BorderBrush}"
-                                    StrokeThickness="2"
-                                    Stretch="Uniform"/>
-
-                                <Ellipse x:Name="CenterGlow" Stretch="Uniform">
-                                    <Ellipse.Fill>
-                                        <RadialGradientBrush>
-                                            <GradientStop Color="White" Offset="-0.25"/>
-                                            <GradientStop Color="Transparent" Offset="0.91"/>
-                                        </RadialGradientBrush>
-                                    </Ellipse.Fill>
-                                </Ellipse>
-
-                                <Ellipse x:Name="CornerLight" Stretch="Uniform" Margin="2">
-                                    <Ellipse.Fill>
-                                        <RadialGradientBrush Center="0.15 0.15" RadiusX="0.5" RadiusY="0.5">
-                                            <GradientStop Color="White" Offset="0"/>
-                                            <GradientStop Color="Transparent" Offset="1"/>
-                                        </RadialGradientBrush>
-                                    </Ellipse.Fill>
-                                </Ellipse>
-                            </Grid>
-
-                            <ContentPresenter x:Name="content" Grid.Column="1" Margin="4,0,0,0"
-                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                            RecognizesAccessKey="True"/>
-
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="true">
-                                <Setter TargetName="LedBorder" Property="Fill" Value="{Binding Path=OnColor, RelativeSource={RelativeSource TemplatedParent}}"/>
-                                <Setter TargetName="content" Property="TextElement.Foreground" Value="{Binding Path=OnColor, RelativeSource={RelativeSource TemplatedParent}}"/>
-                            </Trigger>
-
-                            <Trigger Property="IsChecked" Value="false">
-                                <Setter TargetName="LedBorder" Property="Fill" Value="{Binding Path=OffColor, RelativeSource={RelativeSource TemplatedParent}}"/>
-                                <Setter TargetName="content" Property="TextElement.Foreground" Value="{Binding Path=OffColor, RelativeSource={RelativeSource TemplatedParent}}"/>
-                            </Trigger>
-
-                            <Trigger Property="IsEnabled" Value="false">
-                                <Setter TargetName="LedBorder" Property="Fill" Value="{Binding Path=NoColor, RelativeSource={RelativeSource TemplatedParent}}"/>
-                                <Setter TargetName="content" Property="TextElement.Foreground" Value="{Binding Path=NoColor, RelativeSource={RelativeSource TemplatedParent}}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <local:BindingProxy x:Key="proxy" Data="{Binding SetPort}" />
+        <local:DefaultConvert x:Key="DefaultConvert" />
     </UserControl.Resources>
-    
-    
-    <StackPanel Margin="0 100 0 0">
-        <StackPanel Orientation="Horizontal" Margin="294 0">
+
+
+    <StackPanel Margin="0 100 0 0" HorizontalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Margin="0 0 50 0">
             <TextBlock VerticalAlignment="Center" Text="COM:" Margin="10 0"/>
-            <Button Margin="0 10" Height="20" Width="100" Click="coms_click">
+            <Button Margin="0 10" Height="20" Width="100" IsEnabled="{Binding IsAvailable}" Click="coms_click">
                 <Button.Content>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="{Binding COM}" />
-                        <Path x:Name="BtnArrow" VerticalAlignment="Center" Width="10" Fill="#FF527DB5" Margin="4" Stretch="Uniform" HorizontalAlignment="Right" Data="F1 M 301.14,-189.041L 311.57,-189.041L 306.355,-182.942L 301.14,-189.041 Z "/>
+                        <Path x:Name="BtnArrow" VerticalAlignment="Center" Width="10" Fill="#FF527DB5" Margin="4" 
+                              Stretch="Uniform" HorizontalAlignment="Right" Data="F1 M 301.14,-189.041L 311.57,-189.041L 306.355,-182.942L 301.14,-189.041 Z "/>
                     </StackPanel>
                 </Button.Content>
                 <Button.ContextMenu>
-                    <ContextMenu IsEnabled="False" ItemsSource="{Binding ComPorts}">
+                    <ContextMenu IsEnabled="False" ItemsSource="{Binding Source={StaticResource cvs}}">
                         <ContextMenu.ItemTemplate>
                             <DataTemplate>
-                                <MenuItem Foreground="Snow" Header="{Binding }" Command="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}}, Path=DataContext.SetPort}" CommandParameter="{Binding }" />
+                                <MenuItem Foreground="Snow" Header="{Binding }" 
+                                          Command="{Binding Data, Source={StaticResource proxy}}" 
+                                          CommandParameter="{Binding }" />
                             </DataTemplate>
                         </ContextMenu.ItemTemplate>
                     </ContextMenu>
                 </Button.ContextMenu>
             </Button>
         </StackPanel>
-        <Button Content="Connect" Command="{Binding SerialConnection}" IsEnabled="{Binding IsEnabled}" Height="20" Width="100" VerticalContentAlignment="Center"/>
-        <Button Content="Phase Diagnostic" Command="{Binding PhaseDiag}" IsEnabled="{Binding IsEnabled}" Height="20" Width="100" VerticalContentAlignment="Center" Margin="0 10"/>
+        <Button Content="Connect" Command="{Binding SerialConnection}" IsEnabled="{Binding IsAvailable}" 
+                Height="20" Width="100" VerticalContentAlignment="Center"/>
+        <Button Content="Disconnect" Command="{Binding BreakSerial}" IsEnabled="{Binding IsEnabled}" 
+                Height="20" Width="100" VerticalContentAlignment="Center" Margin="0 10"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
             <TextBlock Text="Connection Status: " VerticalAlignment="Center"/>
-            <local:LedControl Height="24" IsChecked="{Binding IsConnected, Mode=OneWay}" IsEnabled="{Binding IsAttempted, Mode=OneWay}" />
+            <local:LedControl IsThreeState="True" Height="24" IsHitTestVisible="False" IsEnabled="True"
+                              IsChecked="{Binding IsConnected, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
         </StackPanel>
     </StackPanel>
 </UserControl>

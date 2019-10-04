@@ -13,6 +13,7 @@ namespace WpfCommApp
         private static bool echo = true;
         private static bool carriageReturn = false;
         private static string serialBuffer;
+        private static string serialNo;
 
         private static List<string> pwds = new List<string>
                 { "-5lEvElbAl", "-3Super3", "-4E9Kgxk20",
@@ -22,13 +23,23 @@ namespace WpfCommApp
 
         #endregion
 
+        #region Properties
+        public bool IsOpen
+        {
+            get { return _serial.IsOpen; }
+        }
+
+        #endregion
+
         #region Methods
-        public void SetupSerial(string com)
+        public string SetupSerial(string com)
         {
             _serial = new SerialPort(com, 19200);
             _serial.Open();
 
             Login();
+
+            return serialNo;
         }
 
         public void Login()
@@ -68,7 +79,6 @@ namespace WpfCommApp
             //ReadBuffer();
             Console.WriteLine(serialBuffer);
             string[] split = serialBuffer.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
-            string serialNo;
 
             if (serialBuffer.Contains("attn"))
                 serialNo = split[2];
@@ -95,15 +105,20 @@ namespace WpfCommApp
             }
         }
 
-        public void PD()
+        public string PD()
         {
             serialBuffer = "";
             WriteToSerial("mscan -Gp", true);
             while (_serial.BytesToRead == 0) { }
             ReadBuffer(true);
             Console.Write(serialBuffer + ' ');
+            return serialBuffer;
         }
 
+        public void Close()
+        {
+            _serial.Close();
+        }
         #region Serial Communication Functions
         private void WriteToSerial(string data, bool echo = true)
         {

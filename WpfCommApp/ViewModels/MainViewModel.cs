@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
 
@@ -36,6 +37,7 @@ namespace WpfCommApp
                 }
             }
         }
+
         public List<IPageViewModel> Pages
         {
             get
@@ -96,18 +98,30 @@ namespace WpfCommApp
         #endregion
 
         #region Constructor
+
         /// <summary>
         /// Default constructor
         /// </summary>
         public MainViewModel()
         {
-            Pages.Add(new LoginViewModel());
+            //List<Meter> meters = Application.Current.Properties["meters"] as List<Meter>;
+
+            //// Delete this section once finished testing
+            //meters[0].Channels = new ObservableCollection<Channel>();
+            //for (int i = 0; i < 12; i++)
+            //    meters[0].Channels.Add(new Channel(i + 1));
+            //meters[0].Channels[0].Phase1 = true;
+            //meters[0].Channels[0].Forced[0] = false;
+            //Application.Current.Properties["meters"] = meters;
+            //// Delete to here
+
             Pages.Add(new ConnectViewModel());
             Pages.Add(new ConfigurationViewModel());
             Pages.Add(new CommissioningViewModel());
+            Pages.Add(new ReviewViewModel());
+            Pages.Add(new LoginViewModel());
 
             CurrentPage = Pages[0];
-            ForwardEnabled = true;
         }
 
         #endregion
@@ -119,7 +133,11 @@ namespace WpfCommApp
             if (idx < _pages.Count - 1)
             {
                 CurrentPage = Pages[idx + 1];
-                ForwardEnabled = false;
+                CurrentPage.Idx = Pages[idx].Idx;
+                if (CurrentPage.Completed)
+                    ForwardEnabled = true;
+                else
+                    ForwardEnabled = false;
             }
         }
 
@@ -129,6 +147,8 @@ namespace WpfCommApp
             if (idx > 0)
             {
                 CurrentPage = Pages[idx - 1];
+                CurrentPage.Idx = Pages[idx].Idx;
+                ForwardEnabled = true;
             }
         }
         #endregion

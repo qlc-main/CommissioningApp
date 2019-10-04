@@ -8,5 +8,31 @@ namespace WpfCommApp
 {
     public class ScreenComplete
     {
+        #region Fields
+        private string _command;
+        #endregion
+
+        #region Properties
+        public string Command
+        {
+            get
+            {
+                return _command;
+            }
+        }
+        #endregion
+
+        #region Constructors
+        public ScreenComplete()
+            : this("")
+        {
+        }
+
+        public ScreenComplete(string fill)
+        {
+            _command = fill;
+        }
+        #endregion
+
     }
 }

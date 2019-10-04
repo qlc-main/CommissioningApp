@@ -4,6 +4,75 @@
              xmlns:local="clr-namespace:WpfCommApp"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <local:DefaultConvert x:Key="DefaultConvert" />
+        <local:StringToFloatConverter x:Key="StringToFloatConverter" />
+        
+        <Style TargetType="local:LedControl">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="Black"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="local:LedControl">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition/>
+                            </Grid.ColumnDefinitions>
+
+                            <Grid Background="Transparent" Name="grd"
+                            Margin="{TemplateBinding Padding}"
+                            VerticalAlignment="Stretch" 
+                            Width="{Binding Path=ActualHeight, Mode=OneWay, RelativeSource={RelativeSource Self}}">
+
+                                <Ellipse x:Name="LedBorder" 
+                                    Fill="Gray"
+                                    Stroke="{TemplateBinding BorderBrush}"
+                                    StrokeThickness="2"
+                                    Stretch="Uniform"/>
+
+                                <Ellipse x:Name="CenterGlow" Stretch="Uniform">
+                                    <Ellipse.Fill>
+                                        <RadialGradientBrush>
+                                            <GradientStop Color="White" Offset="-0.25"/>
+                                            <GradientStop Color="Transparent" Offset="0.91"/>
+                                        </RadialGradientBrush>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+
+                                <Ellipse x:Name="CornerLight" Stretch="Uniform" Margin="2">
+                                    <Ellipse.Fill>
+                                        <RadialGradientBrush Center="0.15 0.15" RadiusX="0.5" RadiusY="0.5">
+                                            <GradientStop Color="White" Offset="0"/>
+                                            <GradientStop Color="Transparent" Offset="1"/>
+                                        </RadialGradientBrush>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
+
+                            <ContentPresenter x:Name="content" Grid.Column="1" Margin="4,0,0,0"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            RecognizesAccessKey="True" TextElement.Foreground="Gray"/>
+
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="true">
+                                <Setter TargetName="LedBorder" Property="Fill" Value="{Binding Path=OnColor, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <Setter TargetName="content" Property="TextElement.Foreground" Value="{Binding Path=OnColor, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            </Trigger>
+
+                            <Trigger Property="IsChecked" Value="false">
+                                <Setter TargetName="LedBorder" Property="Fill" Value="{Binding Path=OffColor, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <Setter TargetName="content" Property="TextElement.Foreground" Value="{Binding Path=OffColor, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        
     </Application.Resources>
 </Application>

@@ -38,7 +38,14 @@ namespace WpfCommApp
         {
             Current.Dispatcher.Invoke((Action)(() =>
             {
-                (DataContext as MainViewModel).ForwardEnabled = true;
+                MainViewModel m = (DataContext as MainViewModel);
+
+                if (message.Command == "cont")
+                    m.ForwardPage.Execute(null);
+                else if (message.Command == "disable")
+                    m.ForwardEnabled = false;
+                else
+                    m.ForwardEnabled = true;
             }));
         }
     }

@@ -28,9 +28,9 @@ namespace WpfCommApp
         {
         }
 
-        public ScreenComplete(string fill)
+        public ScreenComplete(string command)
         {
-            _command = fill;
+            _command = command;
         }
         #endregion
 

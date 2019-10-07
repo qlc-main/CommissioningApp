@@ -71,21 +71,4 @@ namespace WpfCommApp
             throw new NotImplementedException();
         }
     }
-
-    public class StringToFloatConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            return value;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            float res;
-            if (float.TryParse(value as string, out res))
-                return res;
-            else
-                return 0.0f;
-        }
-    }
 }

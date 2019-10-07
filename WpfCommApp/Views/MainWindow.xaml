@@ -27,14 +27,16 @@
     
     <StackPanel Orientation="Vertical">
         <ContentControl Content="{Binding CurrentPage}" MinHeight="390"></ContentControl>
-        <Grid>
+        <Grid Margin="0 30 0 0" VerticalAlignment="Bottom">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Button Margin="10 0" Content="Backward" Width="100" Command="{Binding BackwardPage}"/>
-            <Button Margin="10 0" Grid.Column="1" Content="Forward" Width="100" Command="{Binding ForwardPage}" IsEnabled="{Binding ForwardEnabled}"/>
+            <Button Margin="10 0 10 5" Content="Backward" Width="100" Command="{Binding BackwardPage}"
+                    VerticalAlignment="Bottom"/>
+            <Button Margin="10 0 10 5" Grid.Column="1" Content="Forward" Width="100" Command="{Binding ForwardPage}" 
+                    IsEnabled="{Binding ForwardEnabled}"/>
         </Grid>
     </StackPanel>
 </Window>

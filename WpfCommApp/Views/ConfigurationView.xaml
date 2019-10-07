@@ -34,9 +34,7 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Meter" Width="100" Binding="{Binding ID, Mode=OneWay}" />
                     <DataGridTextColumn Header="Primary" Width="100" Binding="{Binding Primary, UpdateSourceTrigger=PropertyChanged}" />
-                    <DataGridTextColumn Header="Secondary" Width="100" 
-                                        Binding="{Binding Secondary, Converter={StaticResource StringToFloatConverter},
-                        UpdateSourceTrigger=PropertyChanged}" />
+                    <DataGridTextColumn Header="Secondary" Width="100" Binding="{Binding SecondaryString, UpdateSourceTrigger=PropertyChanged}" />
                 </DataGrid.Columns>
             </DataGrid>
         </Grid>

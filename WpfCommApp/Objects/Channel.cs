@@ -16,6 +16,7 @@ namespace WpfCommApp
         private bool? _phase2;
         private bool[] _forced;
         private float _secondary;
+        private string _secondaryString;
         private string _breakerNumber;
         private string _apartmentNumber;
         private string _notes;
@@ -49,13 +50,20 @@ namespace WpfCommApp
         {
             get
             {
-                return _secondary;
+                if (float.TryParse(_secondaryString, out float val))
+                    return val;
+                else
+                    return 0.0f;
             }
+        }
 
+        public string SecondaryString
+        {
+            get { return _secondaryString; }
             set
             {
-                if (_secondary != value)
-                    _secondary = value;
+                if (_secondaryString != value)
+                    _secondaryString = value;
             }
         }
 
@@ -160,7 +168,7 @@ namespace WpfCommApp
         {
             _id = id;
             _primary = 100;
-            _secondary = .1f;
+            _secondaryString = "0.1";
             _forced = new bool[2] { true, true };
             _phase1 = null;
             _phase2 = null;

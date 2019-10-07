@@ -10,6 +10,7 @@ namespace WpfCommApp
     public class Meter : ObservableObject
     {
         #region Fields
+        private bool _commissioned;
         private string _id;
         private string _notes;
         private ObservableCollection<Channel> _channels;
@@ -50,6 +51,16 @@ namespace WpfCommApp
             {
                 _channels = value;
                 OnPropertyChanged(nameof(Channels));
+            }
+        }
+
+        public bool Commissioned
+        {
+            get { return _commissioned; }
+            set
+            {
+                if (_commissioned != value)
+                    _commissioned = value;
             }
         }
 

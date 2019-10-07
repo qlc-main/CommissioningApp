@@ -68,7 +68,7 @@
                                     HeaderStyle="{StaticResource centerHeader}" />
 
                 <DataGridTextColumn Header="Secondary" Width="Auto" ElementStyle="{StaticResource center}" 
-                                    Binding="{Binding Secondary, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    Binding="{Binding SecondaryString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                     HeaderStyle="{StaticResource centerHeader}" />
 
                 <DataGridTemplateColumn Header="Phase 1" HeaderStyle="{StaticResource centerHeader}" MinWidth="50">

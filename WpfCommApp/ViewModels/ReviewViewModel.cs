@@ -34,13 +34,13 @@ namespace WpfCommApp
                 {
                     _completed = value;
 
-                    // Enable the forward button if at least one channel is commissioned
+                    // Enable the forward button if necessary details completely filled in
                     if (value)
                         // Send message to enable forward button
                         (Application.Current.Properties["MessageBus"] as MessageBus)
                             .Publish(new ScreenComplete());
 
-                    // Disable the forward button if no channels are commissioned
+                    // Disable the forward button if at least one necessary detail is unavailable
                     else
                         // Send message to enable forward button
                         (Application.Current.Properties["MessageBus"] as MessageBus)
@@ -125,14 +125,17 @@ namespace WpfCommApp
 
                 bool stop = true;
                 foreach (Channel c in Channels)
-                    if ((c.Phase1 == true || c.Phase2 == true) && ((c.Forced[0] && string.IsNullOrEmpty(c.ForcedReason[0])) ||
-                        (c.Forced[1] && string.IsNullOrEmpty(c.ForcedReason[1])) ||
-                        string.IsNullOrEmpty(c.ApartmentNumber) || string.IsNullOrEmpty(c.BreakerNumber) )) {
+                    if (((c.Phase1 == true || c.Phase2 == true) && (
+                        string.IsNullOrEmpty(c.ApartmentNumber) ||
+                        string.IsNullOrEmpty(c.BreakerNumber))) ||
+                        (c.Phase1 == true && c.Forced[0] && string.IsNullOrEmpty(c.ForcedReason[0])) ||
+                        (c.Phase2 == true && c.Forced[1] && string.IsNullOrEmpty(c.ForcedReason[1]))) {
                         stop = false;
                         break;
                     }
 
                 Completed = stop;
+                _meter.Commissioned = stop;
                 if (_break)
                     break;
             }

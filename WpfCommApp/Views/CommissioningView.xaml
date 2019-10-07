@@ -76,10 +76,10 @@
     <Grid>
         <i:Interaction.Triggers>
             <i:EventTrigger EventName="Loaded">
-                <i:InvokeCommandAction Command="{Binding StartPhaseDiagnostic}" />
+                <i:InvokeCommandAction Command="{Binding StartAsync}" />
             </i:EventTrigger>
             <i:EventTrigger EventName="Unloaded">
-                <i:InvokeCommandAction Command="{Binding StopPhaseDiagnostic}" />
+                <i:InvokeCommandAction Command="{Binding StopAsync}" />
             </i:EventTrigger>
         </i:Interaction.Triggers>
 

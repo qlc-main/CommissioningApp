@@ -93,7 +93,7 @@ namespace WpfCommApp
 
         #region Commands
 
-        public IAsyncCommand StartPhaseDiagnostic
+        public IAsyncCommand StartAsync
         {
             get
             {
@@ -106,7 +106,7 @@ namespace WpfCommApp
             }
         }
 
-        public ICommand StopPhaseDiagnostic
+        public ICommand StopAsync
         {
             get
             {

@@ -15,7 +15,6 @@ namespace WpfCommApp
         private bool? _phase1;
         private bool? _phase2;
         private bool[] _forced;
-        private float _secondary;
         private string _secondaryString;
         private string _breakerNumber;
         private string _apartmentNumber;

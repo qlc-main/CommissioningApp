@@ -1,7 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Linq;
 using System.Windows.Input;
+using System.Threading.Tasks;
+using System.IO;
 
 namespace WpfCommApp
 {
@@ -12,11 +15,19 @@ namespace WpfCommApp
 
         private ICommand _forwardPage;
         private ICommand _backwardPage;
+        private ICommand _closeTab;
+        private ICommand _openTab;
+        private IAsyncCommand _saveCommand;
 
-        private IPageViewModel _current;
-        private List<IPageViewModel> _pages;
+        private ObservableCollection<Meter> _meters;
+        private ObservableCollection<SerialComm> _serial;
+        private ObservableCollection<ContentTab> _tabs;
+        private ObservableCollection<ContentTab> _menuTabs;
+        private ObservableCollection<ContentTab> _viewTabs;
+        private int _tabIndex;
 
         private bool _forwardEnabled;
+        private bool _backwardEnabled;
 
         #endregion
 
@@ -38,32 +49,98 @@ namespace WpfCommApp
             }
         }
 
-        public List<IPageViewModel> Pages
+        public bool BackwardEnabled
         {
             get
             {
-                if (_pages == null)
-                    _pages = new List<IPageViewModel>();
-
-                return _pages;
+                return _backwardEnabled;
             }
-        }
 
-        public IPageViewModel CurrentPage
-        {
-            get
-            {
-                return _current;
-            }
             set
             {
-                if (_current != value)
+                if (_backwardEnabled != value)
                 {
-                    _current = value;
-                    OnPropertyChanged(nameof(CurrentPage));
+                    _backwardEnabled = value;
+                    OnPropertyChanged(nameof(BackwardEnabled));
                 }
             }
         }
+
+        public ObservableCollection<ContentTab> Tabs
+        {
+            get { return _tabs; }
+            set
+            {
+                _tabs = value;
+            }
+        }
+
+        public int TabIndex
+        {
+            get { return _tabIndex; }
+            set
+            {
+                if (_tabIndex != value)
+                {
+                    _tabIndex = value;
+                    foreach(var tab in _tabs)
+                    {
+                        if (tab.Visible)
+                        {
+                            if (_menuTabs.Contains(tab))
+                                _menuTabs.Remove(tab);
+                            if (!_viewTabs.Contains(tab))
+                                _viewTabs.Add(tab);
+                        }
+                        else
+                        {
+                            if (!_menuTabs.Contains(tab))
+                                _menuTabs.Add(tab);
+                            if (_viewTabs.Contains(tab))
+                                _viewTabs.Remove(tab);
+                        }
+                    }
+
+                    OnPropertyChanged(nameof(TabIndex));
+                    OnPropertyChanged(nameof(ViewTabs));
+                    OnPropertyChanged(nameof(MenuTabs));
+                }
+            }
+        }
+
+        public ContentTab CurrentTab
+        {
+            get { return TabIndex < 0 ? null : Tabs[TabIndex]; }
+        }
+
+        public ObservableCollection<Meter> Meters
+        {
+            get { return _meters; }
+            set { _meters = value; OnPropertyChanged(nameof(Meters)); }
+        }
+
+        public ObservableCollection<SerialComm> Serial
+        {
+            get { return _serial; }
+            set { _serial = value; OnPropertyChanged(nameof(Serial)); }
+        }
+
+        public ObservableCollection<ContentTab> ViewTabs
+        {
+            get
+            {
+                return _viewTabs;
+            }
+        }
+
+        public ObservableCollection<ContentTab> MenuTabs
+        {
+            get
+            {
+                return _menuTabs;
+            }
+        }
+
 
         #endregion
 
@@ -95,6 +172,39 @@ namespace WpfCommApp
             }
         }
 
+        public ICommand CloseCommand
+        {
+            get
+            {
+                if (_closeTab == null)
+                    _closeTab = new RelayCommand(p => CloseTab(p as string));
+
+                return _closeTab;
+            }
+        }
+
+        public ICommand OpenCommand
+        {
+            get
+            {
+                if (_openTab == null)
+                    _openTab = new RelayCommand(p => OpenTab(p as string));
+
+                return _openTab;
+            }
+        }
+
+        public IAsyncCommand SaveCommand
+        {
+            get
+            {
+                if (_saveCommand == null)
+                    _saveCommand = new AsyncRelayCommand(SaveMeters, () => { return true; });
+
+                return _saveCommand;
+            }
+        }
+
         #endregion
 
         #region Constructor
@@ -104,24 +214,16 @@ namespace WpfCommApp
         /// </summary>
         public MainViewModel()
         {
-            //List<Meter> meters = Application.Current.Properties["meters"] as List<Meter>;
-
-            //// Delete this section once finished testing
-            //meters[0].Channels = new ObservableCollection<Channel>();
-            //for (int i = 0; i < 12; i++)
-            //    meters[0].Channels.Add(new Channel(i + 1));
-            //meters[0].Channels[0].Phase1 = true;
-            //meters[0].Channels[0].Forced[0] = false;
-            //Application.Current.Properties["meters"] = meters;
-            //// Delete to here
-
-            Pages.Add(new ConnectViewModel());
-            Pages.Add(new ConfigurationViewModel());
-            Pages.Add(new CommissioningViewModel());
-            Pages.Add(new ReviewViewModel());
-            Pages.Add(new LoginViewModel());
-
-            CurrentPage = Pages[0];
+            Meters = (Application.Current.Properties["meters"] as ObservableCollection<Meter>);
+            Serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>);
+            Tabs = new ObservableCollection<ContentTab>();
+            Tabs.Add(new ContentTab(-1));
+            _viewTabs = new ObservableCollection<ContentTab>();
+            _viewTabs.Add(Tabs[0]);
+            _menuTabs = new ObservableCollection<ContentTab>();
+            TabIndex = 0;
+            BackwardEnabled = false;
+            
         }
 
         #endregion
@@ -129,28 +231,148 @@ namespace WpfCommApp
         #region Methods
         private void Forward()
         {
-            var idx = _pages.IndexOf(_current);
-            if (idx < _pages.Count - 1)
+            if (TabIndex == 0)
             {
-                CurrentPage = Pages[idx + 1];
-                CurrentPage.Idx = Pages[idx].Idx;
-                if (CurrentPage.Completed)
-                    ForwardEnabled = true;
+                if (Tabs.Where(x => x.Visible == true).Count() > 1)
+                {
+                    TabIndex = 1;
+
+                    var current = CurrentTab.CurrentPage;
+                    if (current.Completed)
+                        ForwardEnabled = true;
+                    else
+                        ForwardEnabled = false;
+                }
                 else
-                    ForwardEnabled = false;
+                {
+                    var pages = CurrentTab.Pages;
+                    var page = CurrentTab.CurrentPage;
+                    var idx = pages.IndexOf(page);
+
+                    if (idx < pages.Count - 1)
+                    {
+                        CurrentTab.CurrentPage = pages[idx + 1];
+                        if (CurrentTab.CurrentPage.Completed)
+                            ForwardEnabled = true;
+                        else
+                            ForwardEnabled = false;
+                    }
+                }
             }
+            else
+            {
+                var pages = CurrentTab.Pages;
+                var current = CurrentTab.CurrentPage;
+                var idx = pages.IndexOf(current);
+
+                if (idx < pages.Count - 1)
+                {
+                    CurrentTab.CurrentPage = pages[idx + 1];
+                    if (CurrentTab.CurrentPage.Completed)
+                        ForwardEnabled = true;
+                    else
+                        ForwardEnabled = false;
+                }
+                else
+                {
+                    // Close this tab if we are finished commissioning this meter.
+                    CloseTab(CurrentTab.Name);
+
+                    if (TabIndex == 0)
+                    {
+                        pages = CurrentTab.Pages;
+                        current = CurrentTab.CurrentPage;
+                        idx = pages.IndexOf(current);
+
+                        if (idx < pages.Count - 1)
+                        {
+                            CurrentTab.CurrentPage = pages[idx + 1];
+                            if (CurrentTab.CurrentPage.Completed)
+                                ForwardEnabled = true;
+                            else
+                                ForwardEnabled = false;
+                        }
+                    }
+                }
+            }
+
+            BackwardEnabled = true;
         }
 
         private void Backward()
         {
-            var idx = _pages.IndexOf(_current);
+            var pages = CurrentTab.Pages;
+            var current = CurrentTab.CurrentPage;
+            var idx = pages.IndexOf(current);
+
             if (idx > 0)
             {
-                CurrentPage = Pages[idx - 1];
-                CurrentPage.Idx = Pages[idx].Idx;
+                CurrentTab.CurrentPage = pages[idx - 1];
                 ForwardEnabled = true;
+                BackwardEnabled = true;
+            }
+            else
+            {
+                if (CurrentTab.Name != "Serial Connection")
+                {
+                    TabIndex = 0;
+                    ForwardEnabled = true;
+                    BackwardEnabled = false;
+                }
             }
         }
+        
+        private void CloseTab(string p)
+        {
+            int idx = Tabs.Select((value, index) => new { value, index })
+                        .Where(x => x.value.Name == p && x.value.Visible == true)
+                        .Select(x => x.index)
+                        .Take(1)
+                        .ElementAt(0);
+
+            // Do not remove the first tab if there are other tabs open
+            if (Tabs.Where(x => x.Visible == true).Count() > 1 && idx == 0)
+                return;
+
+            // Remove the tab and then adjust the TabIndex to shift to other open tabs
+            Tabs[idx].Visible = false;
+            if (Tabs.Where(x => x.Visible == true).Count() == 0)
+            {
+                Application.Current.Shutdown();
+            }
+            else if (TabIndex == idx)
+            {
+                TabIndex -= 1;
+            }
+            else
+            {
+                var save = TabIndex;
+                TabIndex = 0;
+                TabIndex = save;
+            }
+        }
+
+        private void OpenTab(string p)
+        {
+            foreach(var tab in Tabs)
+            {
+                if (tab.MeterSerialNo == p)
+                {
+                    tab.Visible = true;
+                    TabIndex = Tabs.IndexOf(tab);
+                    return;
+                }
+            }
+
+        }
+
+        private async Task SaveMeters()
+        {
+            string dir = Directory.GetCurrentDirectory();
+            foreach (Meter m in (Application.Current.Properties["meters"] as ObservableCollection<Meter>))
+                m.Save(dir);
+        }
+
         #endregion
     }
 }

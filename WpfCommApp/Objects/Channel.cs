@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,15 +12,15 @@ namespace WpfCommApp
     {
         #region Fields
         private readonly int _id;
-        private int _primary;
+        private string _primary;
         private bool? _phase1;
         private bool? _phase2;
         private bool[] _forced;
-        private string _secondaryString;
+        private string _secondary;
         private string _breakerNumber;
         private string _apartmentNumber;
         private string _notes;
-        private string[] _forcedReason;
+        private string[] _reason;
 
         #endregion
 
@@ -32,7 +33,7 @@ namespace WpfCommApp
             }
         }
 
-        public int Primary
+        public string Primary
         {
             get
             {
@@ -41,28 +42,53 @@ namespace WpfCommApp
             set
             {
                 if (_primary != value)
+                {
+                    if (string.IsNullOrEmpty(_secondary) && string.IsNullOrEmpty(value))
+                    {
+                        Reason = new string[2] { "NC", "NC" };
+                        BreakerNumber = "NC";
+                        ApartmentNumber = "NC";
+                        Notes = "Not Commissioned";
+                    }
+                    else if (string.IsNullOrEmpty(_primary))
+                    {
+                        Reason = new string[2] { string.Empty, string.Empty };
+                        BreakerNumber = string.Empty;
+                        ApartmentNumber = string.Empty;
+                        Notes = string.Empty;
+                    }
+
                     _primary = value;
+                    OnPropertyChanged(nameof(Primary));
+                }
             }
         }
 
-        public float Secondary
+        public string Secondary
         {
-            get
-            {
-                if (float.TryParse(_secondaryString, out float val))
-                    return val;
-                else
-                    return 0.0f;
-            }
-        }
-
-        public string SecondaryString
-        {
-            get { return _secondaryString; }
+            get { return _secondary; }
             set
             {
-                if (_secondaryString != value)
-                    _secondaryString = value;
+                if (_secondary != value)
+                {
+                    if (string.IsNullOrEmpty(value) && string.IsNullOrEmpty(_primary))
+                    {
+                        Reason = new string[2] { "NC", "NC" };
+                        BreakerNumber = "NC";
+                        ApartmentNumber = "NC";
+                        Notes = "Not Commissioned";
+                    }
+                    else if (string.IsNullOrEmpty(_secondary))
+                    {
+                        Reason = new string[2] { string.Empty, string.Empty };
+                        BreakerNumber = string.Empty;
+                        ApartmentNumber = string.Empty;
+                        Notes = string.Empty;
+                    }
+
+                    _secondary = value;
+                    OnPropertyChanged(nameof(Secondary));
+                }
             }
         }
 
@@ -81,7 +107,13 @@ namespace WpfCommApp
                 {
                     _phase1 = value;
                     if (value == null)
+                    {
                         _forced[0] = true;
+                        Reason = new string[] { "NC", _reason[1] };
+                    }
+                    else
+                        Reason = new string[] { string.Empty, _reason[1] };
+
                     OnPropertyChanged(nameof(Phase1));
                 }
             }
@@ -96,7 +128,13 @@ namespace WpfCommApp
                 {
                     _phase2 = value;
                     if (value == null)
+                    {
                         _forced[1] = true;
+                        Reason = new string[] { _reason[0], "NC" };
+                    }
+                    else
+                        Reason = new string[] { _reason[0], string.Empty };
+
                     OnPropertyChanged(nameof(Phase2));
                 }
             }
@@ -136,13 +174,13 @@ namespace WpfCommApp
             }
         }
 
-        public string[] ForcedReason
+        public string[] Reason
         {
-            get { return _forcedReason; }
+            get { return _reason; }
             set
             {
-                _forcedReason = value;
-                OnPropertyChanged(nameof(ForcedReason));
+                _reason = value;
+                OnPropertyChanged(nameof(Reason));
             }
         }
 
@@ -166,14 +204,31 @@ namespace WpfCommApp
         public Channel(int id)
         {
             _id = id;
-            _primary = 100;
-            _secondaryString = "0.1";
+            _primary = "100";
+            _secondary = "0.1";
             _forced = new bool[2] { true, true };
             _phase1 = null;
             _phase2 = null;
             _apartmentNumber = string.Empty;
             _breakerNumber = string.Empty;
-            _forcedReason = new string[2] { string.Empty, string.Empty };
+            _reason = new string[2] { "NC", "NC" };
+        }
+
+        #endregion
+
+        #region Methods
+
+        public void Save (StreamWriter sw)
+        {
+            if (Phase1 == true)
+                sw.WriteLine(string.Format("{0},{1},{2}/{3},{4},{5}", ID * 2 - 1, ApartmentNumber, Primary, Secondary, BreakerNumber, Reason[0] + " - " + Notes));
+            else
+                sw.WriteLine(string.Format("{0},Not Commissionned,Not Commissionned,Not Commissionned,Not Commissionned,Not Commissionned", ID * 2 - 1));
+
+            if (Phase2 == true)
+                sw.WriteLine(string.Format("{0},{1},{2}/{3},{4},{5}", ID * 2, ApartmentNumber, Primary, Secondary, BreakerNumber, Reason[1] + " - " + Notes));
+            else
+                sw.WriteLine(string.Format("{0},Not Commissionned,Not Commissionned,Not Commissionned,Not Commissionned,Not Commissionned", ID * 2));
         }
 
         #endregion

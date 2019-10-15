@@ -57,7 +57,9 @@ namespace WpfCommApp
             }
         }
 
-        public int Idx
+        public string Name { get { return "Commissioning"; } }
+
+        public int IDX
         {
             get { return _idx; }
             set { if (_idx != value) _idx = value; }
@@ -78,7 +80,7 @@ namespace WpfCommApp
             get
             {
                 if (_meter == null)
-                    _meter = (Application.Current.Properties["meters"] as List<Meter>)[Idx];
+                    _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
 
                 return _meter.Channels;
             }
@@ -98,9 +100,7 @@ namespace WpfCommApp
             get
             {
                 if (_pd == null)
-                {
                     _pd = new AsyncRelayCommand(PD, () => { return true; });
-                }
 
                 return _pd;
             }
@@ -111,9 +111,7 @@ namespace WpfCommApp
             get
             {
                 if (_spd == null)
-                {
                     _spd = new RelayCommand(p => SPD());
-                }
 
                 return _spd;
             }
@@ -123,27 +121,22 @@ namespace WpfCommApp
 
         #region Constructors
 
-        public CommissioningViewModel()
+        public CommissioningViewModel(int idx)
         {
             _phaseAText = new string[4][];
             _phaseBText = new string[4][];
             _diff = new Dictionary<string, int>[2][];
+            _idx = idx;
         }
 
         #endregion
 
         #region Methods
 
-        // Delete after testing
-        private async Task ser()
-        {
-            _serial.SetupSerial("COM4");
-        }
-
         private async Task PD()
         {
-            _serial = (Application.Current.Properties["serial"] as List<SerialComm>)[Idx];
-            _meter = (Application.Current.Properties["meters"] as List<Meter>)[Idx];
+            _serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>)[IDX];
+            _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
             OnPropertyChanged(nameof(Channels));
 
             int length = Channels.Count;
@@ -181,9 +174,6 @@ namespace WpfCommApp
                     }
                 }
             }
-
-            // Delete after testing
-            //await ser();
 
             while (true) {
                 try

@@ -27,50 +27,6 @@
             <Setter Property="HorizontalAlignment" Value="Center" />
         </Style>
 
-        <!-- Colors Phase Column 1 cells appropriately -->
-        <Style TargetType="DataGridCell" x:Key="altCellA">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
-                            Converter={StaticResource ColorRowConverter}}" 
-                             Value="0">
-                    <Setter Property="Background" Value="Black" />
-                    <Setter Property="Foreground" Value="White" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
-                            Converter={StaticResource ColorRowConverter}}" 
-                             Value="1">
-                    <Setter Property="Background" Value="Blue" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
-                            Converter={StaticResource ColorRowConverter}}" 
-                             Value="2">
-                    <Setter Property="Background" Value="Red" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Colors Phase Column 2 cells appropriately -->
-        <Style TargetType="DataGridCell" x:Key="altCellB">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
-                            Converter={StaticResource ColorRowConverter}}" 
-                             Value="0">
-                    <Setter Property="Background" Value="Red" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
-                            Converter={StaticResource ColorRowConverter}}" 
-                             Value="1">
-                    <Setter Property="Background" Value="Black" />
-                    <Setter Property="Foreground" Value="White" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Path=DataContext.ID, RelativeSource={RelativeSource AncestorType=DataGridRow},
-                            Converter={StaticResource ColorRowConverter}}" 
-                             Value="2">
-                    <Setter Property="Background" Value="Blue" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-
     </UserControl.Resources>
 
     <Grid>
@@ -90,9 +46,8 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Meter" Width="Auto" ElementStyle="{StaticResource center}" Binding="{Binding ID, Mode=OneWay}"
                                     HeaderStyle="{StaticResource centerHeader}" />
-                
-                <DataGridTemplateColumn Header="Phase 1 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180"
-                                        CellStyle="{StaticResource altCellA}">
+
+                <DataGridTemplateColumn Header="Phase 1 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
@@ -142,8 +97,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn Header="Phase 2 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180"
-                                        CellStyle="{StaticResource altCellB}">
+                <DataGridTemplateColumn Header="Phase 2 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>

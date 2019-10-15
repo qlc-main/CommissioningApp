@@ -3,40 +3,83 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
         xmlns:local="clr-namespace:WpfCommApp"
         mc:Ignorable="d"
-        Title="MainWindow" MinHeight="500" MinWidth="800">
-    
-    <Window.Resources>
-        <DataTemplate DataType="{x:Type local:LoginViewModel}">
-            <local:LoginView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type local:ConnectViewModel}">
-            <local:ConnectView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type local:ConfigurationViewModel}">
-            <local:ConfigurationView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type local:CommissioningViewModel}">
-            <local:CommissioningView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type local:ReviewViewModel}">
-            <local:ReviewView />
-        </DataTemplate>
-    </Window.Resources>
-    
-    <StackPanel Orientation="Vertical">
-        <ContentControl Content="{Binding CurrentPage}" MinHeight="390"></ContentControl>
-        <Grid Margin="0 30 0 0" VerticalAlignment="Bottom">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        Title="QuadLogic Controls Corp." MinHeight="500" MinWidth="800">
 
-            <Button Margin="10 0 10 5" Content="Backward" Width="100" Command="{Binding BackwardPage}"
-                    VerticalAlignment="Bottom"/>
-            <Button Margin="10 0 10 5" Grid.Column="1" Content="Forward" Width="100" Command="{Binding ForwardPage}" 
+    <Window.Resources>
+        <local:BindingProxy x:Key="Context" Data="{Binding }" />
+
+        <!-- Sorts the comport collection so I do not have to in the view model-->
+        <CollectionViewSource Source="{Binding Meters}" x:Key="meters" Filter="Meter_Filter">
+            <CollectionViewSource.SortDescriptions>
+                <scm:SortDescription PropertyName="ID" />
+            </CollectionViewSource.SortDescriptions>
+        </CollectionViewSource>
+
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <Border BorderBrush="LightGray" BorderThickness="0,0,0,1">
+                <DockPanel>
+                    <Menu IsMainMenu="True" Background="White" Height="38.5" VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <MenuItem Header="_File">
+                            <MenuItem Header="Save" Command="{Binding Data.SaveCommand, Source={StaticResource Context}}" />
+                        </MenuItem>
+                        <MenuItem Header="_Open">
+                            <MenuItem Header="Meter Tab">
+                                <ItemsControl ItemsSource="{Binding MenuTabs}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <MenuItem Header="{Binding MeterSerialNo}" 
+                                                      Command="{Binding Data.OpenCommand, Source={StaticResource Context}}"
+                                                      CommandParameter="{Binding MeterSerialNo}"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </MenuItem>
+                        </MenuItem>
+                    </Menu>
+                </DockPanel>
+            </Border>
+        </StackPanel>
+        
+        <StackPanel Orientation="Vertical" Grid.Row="1">
+            <TabControl ItemsSource="{Binding ViewTabs}" SelectedIndex="{Binding TabIndex}" >
+                <TabControl.Resources>
+                    <DataTemplate DataType="{x:Type local:ContentTab}">
+                        <local:ContentTabView />
+                    </DataTemplate>
+                </TabControl.Resources>
+                <TabControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:ContentTab}">
+                        <TextBlock>
+                            <Run Text="{Binding Name, Mode=OneWay}" />
+                            <Hyperlink Command="{Binding Data.CloseCommand, Source={StaticResource Context}}"
+                                       CommandParameter="{Binding Name}">X</Hyperlink>
+                        </TextBlock>
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+            </TabControl>
+            <Grid Margin="0 30 0 0" VerticalAlignment="Bottom">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Margin="10 0 10 5" Content="Backward" Width="100" Command="{Binding BackwardPage}"
+                    VerticalAlignment="Bottom" IsEnabled="{Binding BackwardEnabled}"/>
+                <Button Margin="10 0 10 5" Grid.Column="1" Content="Forward" Width="100" Command="{Binding ForwardPage}" 
                     IsEnabled="{Binding ForwardEnabled}"/>
-        </Grid>
-    </StackPanel>
+            </Grid>
+        </StackPanel>
+    </Grid>
+    
 </Window>

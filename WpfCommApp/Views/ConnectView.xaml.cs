@@ -1,5 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Linq;
+using System.Windows.Data;
 
 namespace WpfCommApp
 {
@@ -15,6 +17,18 @@ namespace WpfCommApp
 
         private void coms_click(object sender, RoutedEventArgs e)
         {
+            // Add ports to the ComPorts object before displaying context menu
+            string[] ports = System.IO.Ports.SerialPort.GetPortNames();
+            var vm = (DataContext as ConnectViewModel);
+            if (vm.ComPorts.Count != ports.Length)
+            {
+                foreach (string s in ports)
+                {
+                    if (!vm.ComPorts.Any(p => p.Name == s))
+                        vm.ComPorts.Add(new Serial(s, false));
+                }
+            }
+
             var button = sender as Button;
             button.ContextMenu.IsOpen = !button.ContextMenu.IsOpen;
 
@@ -28,6 +42,12 @@ namespace WpfCommApp
             {
                 button.ContextMenu.IsEnabled = false;
             }
+        }
+
+        private void CollectionViewSource_Filter(object sender, System.Windows.Data.FilterEventArgs e)
+        {
+            if ((e.Item as Serial).Used || (e.Item as Serial).Default)
+                e.Accepted = false;
         }
     }
 }

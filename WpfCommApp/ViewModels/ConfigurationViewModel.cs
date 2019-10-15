@@ -14,21 +14,12 @@ namespace WpfCommApp
     {
         #region Fields
         private Meter _meter;
-        private ICommand _saveAndContinue;
-        private ICommand _loadMeter;
         private bool _completed;
         private int _idx;
 
         #endregion
 
         #region Properties
-        public string Name
-        {
-            get
-            {
-                return "Configuration";
-            }
-        }
 
         public Meter Meter
         {
@@ -44,7 +35,7 @@ namespace WpfCommApp
             }
         }
 
-        public int Idx
+        public int IDX
         {
             get { return _idx; }
             set { if (_idx != value) _idx = value; }
@@ -64,11 +55,12 @@ namespace WpfCommApp
             {
                 if (_meter == null)
                 {
-                    _meter = (Application.Current.Properties["meters"] as List<Meter>)[Idx];
+                    Meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
 
                     // this code will move when i make the number of channels dependent on user input
-                    for (int i = 0; i < 12; i++)
+                    for (int i = 0; i < _meter.Size; i++)
                         _meter.Channels.Add(new Channel(i + 1));
+
                     // to here 
                 }
 
@@ -81,65 +73,25 @@ namespace WpfCommApp
             }
         }
 
+        public string Name { get { return "Configuration"; } }
+
         #endregion
 
         #region Commands
 
-        public ICommand SaveAndContinue
-        {
-            get
-            {
-                if (_saveAndContinue == null)
-                    _saveAndContinue = new RelayCommand(p => SaveContinue());
-
-                return _saveAndContinue;
-            }
-        }
-
-        public ICommand LoadMeter
-        {
-            get
-            {
-                if (_loadMeter == null)
-                    _loadMeter = new RelayCommand(p => GetMeter());
-
-                return _loadMeter;
-            }
-        }
         #endregion
 
         #region Constructor
 
-        public ConfigurationViewModel()
+        public ConfigurationViewModel(int idx)
         {
+            _idx = idx;
+            _completed = true;
         }
 
         #endregion
 
         #region Methods
-
-        private void GetMeter()
-        {
-            Meter = (Application.Current.Properties["meters"] as List<Meter>)[Idx];
-            for (int i = 0; i < 12; i++)
-                Meter.Channels.Add(new Channel(i + 1));
-
-            OnPropertyChanged(nameof(Channels));
-        }
-
-        private void SaveContinue()
-        {
-            _completed = true;
-            List<Meter> meters = (Application.Current.Properties["meters"] as List<Meter>);
-            int idx = meters.FindIndex(m => m.ID == Meter.ID);
-            if (idx != -1)
-                meters[idx] = _meter;
-            Application.Current.Properties["meters"] = meters;
-
-            // Send message to enable forward button
-            (Application.Current.Properties["MessageBus"] as MessageBus)
-                .Publish(new ScreenComplete("cont"));
-        }
 
         #endregion
     }

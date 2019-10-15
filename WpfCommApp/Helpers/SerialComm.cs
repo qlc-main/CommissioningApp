@@ -9,11 +9,12 @@ namespace WpfCommApp
     public class SerialComm
     {
         #region Fields
-        private static SerialPort _serial;
-        private static bool echo = true;
-        private static bool carriageReturn = false;
-        private static string serialBuffer;
-        private static string serialNo;
+        private SerialPort _serial;
+        private bool echo = true;
+        private bool carriageReturn = false;
+        private string serialBuffer;
+        private string serialNo;
+        private string _com;
 
         private static List<string> pwds = new List<string>
                 { "-5lEvElbAl", "-3Super3", "-4E9Kgxk20",
@@ -26,14 +27,22 @@ namespace WpfCommApp
         #region Properties
         public bool IsOpen
         {
-            get { return _serial.IsOpen; }
+            get { return _serial == null ? false: _serial.IsOpen; }
         }
 
+        public string COM { get { return _com; } }
+
         #endregion
+
+        public SerialComm()
+        {
+
+        }
 
         #region Methods
         public string SetupSerial(string com)
         {
+            _com = com;
             _serial = new SerialPort(com, 19200);
             _serial.Open();
 
@@ -119,7 +128,19 @@ namespace WpfCommApp
         {
             _serial.Close();
         }
+
+        public string GetVersion()
+        {
+            serialBuffer = "";
+            WriteToSerial("ver", true);
+            while (_serial.BytesToRead == 0) { }
+            ReadBuffer(true);
+            Console.Write(serialBuffer + ' ');
+            return serialBuffer;
+        }
+
         #region Serial Communication Functions
+
         private void WriteToSerial(string data, bool echo = true)
         {
             if (echo)

@@ -31,11 +31,13 @@ namespace WpfCommApp
             }
         }
 
-        public int Idx
+        public int IDX
         {
             get { return _idx; }
             set { if (_idx != value) _idx = value; }
         }
+
+        public string Name { get { return "Login"; } }
 
         #endregion
 

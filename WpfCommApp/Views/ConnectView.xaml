@@ -4,6 +4,7 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:WpfCommApp"
+      xmlns:sys="clr-namespace:System;assembly=mscorlib"
       xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
       mc:Ignorable="d" 
       d:DesignHeight="350" d:DesignWidth="800">
@@ -24,9 +25,9 @@
         </Style>
 
         <!-- Sorts the comport collection so I do not have to in the view model-->
-        <CollectionViewSource Source="{Binding ComPorts}" x:Key="cvs">
+        <CollectionViewSource Source="{Binding ComPorts}" x:Key="cvs" Filter="CollectionViewSource_Filter">
             <CollectionViewSource.SortDescriptions>
-                <scm:SortDescription />     <!-- sorts on the item value itself instead of on a property of the item -->
+                <scm:SortDescription PropertyName="Name" />     <!-- sorts on the item value itself instead of on a property of the item -->
             </CollectionViewSource.SortDescriptions>
         </CollectionViewSource>
 
@@ -35,38 +36,54 @@
     </UserControl.Resources>
 
 
-    <StackPanel Margin="0 100 0 0" HorizontalAlignment="Center">
-        <StackPanel Orientation="Horizontal" Margin="0 0 50 0">
-            <TextBlock VerticalAlignment="Center" Text="COM:" Margin="10 0"/>
-            <Button Margin="0 10" Height="20" Width="100" IsEnabled="{Binding IsAvailable}" Click="coms_click">
-                <Button.Content>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding COM}" />
-                        <Path x:Name="BtnArrow" VerticalAlignment="Center" Width="10" Fill="#FF527DB5" Margin="4" 
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock VerticalAlignment="Center" Margin="10" FontSize="16" TextWrapping="Wrap">
+            <Run Text="1. Connect USB Device(s) now" />
+            <LineBreak />
+            <LineBreak />
+            <Run Text="2. Click on the COM Ports that appear when you clik on button next to com" />
+            <LineBreak />
+            <Run Text=" in order to connect to meter(s)." />
+        </TextBlock>
+
+        <StackPanel Margin="0 100 0 0" HorizontalAlignment="Center" Grid.Column="1">
+            <StackPanel Orientation="Horizontal" Margin="0 0 50 0">
+                <TextBlock VerticalAlignment="Center" Text="COM:" Margin="10 0"/>
+                <Button Margin="0 10" Height="20" Width="100" IsEnabled="True" Click="coms_click">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding COMPORT}" />
+                            <Path x:Name="BtnArrow" VerticalAlignment="Center" Width="10" Fill="#FF527DB5" Margin="4" 
                               Stretch="Uniform" HorizontalAlignment="Right" Data="F1 M 301.14,-189.041L 311.57,-189.041L 306.355,-182.942L 301.14,-189.041 Z "/>
-                    </StackPanel>
-                </Button.Content>
-                <Button.ContextMenu>
-                    <ContextMenu IsEnabled="False" ItemsSource="{Binding Source={StaticResource cvs}}">
-                        <ContextMenu.ItemTemplate>
-                            <DataTemplate>
-                                <MenuItem Foreground="Snow" Header="{Binding }" 
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.ContextMenu>
+                        <ContextMenu IsEnabled="False" ItemsSource="{Binding Source={StaticResource cvs}}">
+                            <ContextMenu.ItemTemplate>
+                                <DataTemplate>
+                                    <MenuItem Foreground="Snow" Header="{Binding Name}" 
                                           Command="{Binding Data, Source={StaticResource proxy}}" 
-                                          CommandParameter="{Binding }" />
-                            </DataTemplate>
-                        </ContextMenu.ItemTemplate>
-                    </ContextMenu>
-                </Button.ContextMenu>
-            </Button>
-        </StackPanel>
-        <Button Content="Connect" Command="{Binding SerialConnection}" IsEnabled="{Binding IsAvailable}" 
+                                          CommandParameter="{Binding Name}" />
+                                </DataTemplate>
+                            </ContextMenu.ItemTemplate>
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
+            </StackPanel>
+            <Button Content="Connect" Command="{Binding SerialConnection}" IsEnabled="True" 
                 Height="20" Width="100" VerticalContentAlignment="Center"/>
-        <Button Content="Disconnect" Command="{Binding BreakSerial}" IsEnabled="{Binding IsEnabled}" 
+            <Button Content="Disconnect" Command="{Binding BreakSerial}" IsEnabled="{Binding IsEnabled}" 
                 Height="20" Width="100" VerticalContentAlignment="Center" Margin="0 10"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-            <TextBlock Text="Connection Status: " VerticalAlignment="Center"/>
-            <local:LedControl IsThreeState="True" Height="24" IsHitTestVisible="False" IsEnabled="True"
-                              IsChecked="{Binding IsConnected, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="Connection Status: " VerticalAlignment="Center"/>
+                <local:LedControl IsThreeState="True" Height="24" IsHitTestVisible="False" IsEnabled="True"
+                              IsChecked="{Binding IsConnected, Mode=OneWay}" />
+            </StackPanel>
         </StackPanel>
-    </StackPanel>
+
+    </Grid>
 </UserControl>

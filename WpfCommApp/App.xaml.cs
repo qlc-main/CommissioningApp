@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using Hellang.MessageBus;
 using System.Windows.Threading;
+using System.Collections.ObjectModel;
 
 namespace WpfCommApp
 {
@@ -22,8 +23,8 @@ namespace WpfCommApp
                 action => Dispatcher.Invoke(DispatcherPriority.Normal, action);
             Current.Properties["MessageBus"] =
                     new MessageBus(uiThreadMarshaller);
-            Current.Properties["serial"] = new List<SerialComm>() { new SerialComm() };
-            Current.Properties["meters"] = new List<Meter>() { new Meter() };
+            Current.Properties["serial"] = new ObservableCollection<SerialComm>() { new SerialComm() };
+            Current.Properties["meters"] = new ObservableCollection<Meter>() { new Meter() };
         }
     }
 

@@ -44,9 +44,23 @@ namespace WpfCommApp
                     m.ForwardPage.Execute(null);
                 else if (message.Command == "disable")
                     m.ForwardEnabled = false;
+                else if (message.Command == "switch")
+                {
+                    string serialNo = m.Meters.Last().ID;
+                    m.Tabs.Add(new ContentTab(m.Tabs.Count - 1, serialNo));
+                    m.TabIndex = m.Tabs.Count - 1;
+                    m.BackwardEnabled = true;
+                    m.ForwardEnabled = true;
+                }
                 else
                     m.ForwardEnabled = true;
             }));
+        }
+
+        private void Meter_Filter(object sender, System.Windows.Data.FilterEventArgs e)
+        {
+            if ((e.Item as Meter).Viewing == false)
+                e.Accepted = false;
         }
     }
 }

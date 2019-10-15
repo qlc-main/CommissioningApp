@@ -1,9 +1,5 @@
 ﻿using Hellang.MessageBus;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -54,7 +50,7 @@ namespace WpfCommApp
             get
             {
                 if (_meter == null)
-                    _meter = (Application.Current.Properties["meters"] as List<Meter>)[Idx];
+                    _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
 
                 return _meter.Channels;
             }
@@ -65,11 +61,13 @@ namespace WpfCommApp
             }
         }
 
-        public int Idx
+        public int IDX
         {
             get { return _idx; }
             set { if (_idx != value) _idx = value; }
         }
+
+        public string Name { get { return "Review"; } }
 
         public string Notes
         {
@@ -106,8 +104,9 @@ namespace WpfCommApp
 
         #region Constructors
 
-        public ReviewViewModel()
+        public ReviewViewModel(int idx)
         {
+            _idx = idx;
         }
 
         #endregion
@@ -128,8 +127,8 @@ namespace WpfCommApp
                     if (((c.Phase1 == true || c.Phase2 == true) && (
                         string.IsNullOrEmpty(c.ApartmentNumber) ||
                         string.IsNullOrEmpty(c.BreakerNumber))) ||
-                        (c.Phase1 == true && c.Forced[0] && string.IsNullOrEmpty(c.ForcedReason[0])) ||
-                        (c.Phase2 == true && c.Forced[1] && string.IsNullOrEmpty(c.ForcedReason[1]))) {
+                        (c.Phase1 == true && c.Forced[0] && string.IsNullOrEmpty(c.Reason[0])) ||
+                        (c.Phase2 == true && c.Forced[1] && string.IsNullOrEmpty(c.Reason[1]))) {
                         stop = false;
                         break;
                     }

@@ -9,19 +9,6 @@
              mc:Ignorable="d" 
              MinHeight="350" MinWidth="800">
     <UserControl.Resources>
-        <!-- Hide rows that were not commissioned -->
-        <Style TargetType="{x:Type DataGridRow}" x:Key="HideRow">
-            <Style.Triggers>
-                <MultiDataTrigger>
-                    <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding Path=Phase1}" Value="{x:Null}" />
-                        <Condition Binding="{Binding Path=Phase2}" Value="{x:Null}" />
-                    </MultiDataTrigger.Conditions>
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </MultiDataTrigger>
-            </Style.Triggers>
-        </Style>
-
         <!-- Centers content for columns in header row -->
         <Style TargetType="DataGridColumnHeader" x:Key="centerHeader">
             <Setter Property="HorizontalAlignment" Value="Center" />
@@ -57,19 +44,33 @@
         <DataGrid Margin="10" HorizontalAlignment="Center" VerticalAlignment="Top" SelectionUnit="Cell" 
                     HeadersVisibility="Column" Background="#f2f2f2" RowBackground="white" AlternatingRowBackground="#ffcccb" 
                     CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" 
-                    ItemsSource="{Binding Channels}" AlternationCount="2" ItemContainerStyle="{StaticResource HideRow}" >
+                    ItemsSource="{Binding Channels}" AlternationCount="2" >
 
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Meter" Width="Auto" ElementStyle="{StaticResource center}" Binding="{Binding ID, Mode=OneWay}"
                                     HeaderStyle="{StaticResource centerHeader}" />
 
-                <DataGridTextColumn Header="Primary" Width="Auto" ElementStyle="{StaticResource center}" 
+                <DataGridTextColumn Width="Auto" ElementStyle="{StaticResource center}" 
                                     Binding="{Binding Primary, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    HeaderStyle="{StaticResource centerHeader}" />
+                                    HeaderStyle="{StaticResource centerHeader}">
+                    <DataGridTextColumn.Header>
+                        <TextBlock>
+                            <Run Text="Primary" />
+                            <Run Text="*" Foreground="Red" />
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
+                </DataGridTextColumn>
 
-                <DataGridTextColumn Header="Secondary" Width="Auto" ElementStyle="{StaticResource center}" 
-                                    Binding="{Binding SecondaryString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    HeaderStyle="{StaticResource centerHeader}" />
+                <DataGridTextColumn Width="Auto" ElementStyle="{StaticResource center}" 
+                                    Binding="{Binding Secondary, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    HeaderStyle="{StaticResource centerHeader}">
+                    <DataGridTextColumn.Header>
+                        <TextBlock>
+                            <Run Text="Secondary" />
+                            <Run Text="*" Foreground="Red" />
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
+                </DataGridTextColumn>
 
                 <DataGridTemplateColumn Header="Phase 1" HeaderStyle="{StaticResource centerHeader}" MinWidth="50">
                     <DataGridTemplateColumn.CellTemplate>
@@ -93,11 +94,17 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTextColumn Header="Forced Reason Phase 1" MaxWidth="150" ElementStyle="{StaticResource center}" 
-                                    Binding="{Binding ForcedReason[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                <DataGridTextColumn MaxWidth="150" ElementStyle="{StaticResource center}" 
+                                    Binding="{Binding Reason[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                                     HeaderStyle="{StaticResource centerHeader}" Visibility="{Binding Data.Channels, 
                                     Source={StaticResource proxy}, Converter={StaticResource ColumnCollapse}, 
                                     ConverterParameter={StaticResource IntZero}}">
+                    <DataGridTextColumn.Header>
+                        <TextBlock>
+                            <Run Text="Reason Phase 1" />
+                            <Run Text="*" Foreground="Red" />
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
                     <DataGridTextColumn.CellStyle>
                         <Style TargetType="DataGridCell">
                             <Style.Triggers>
@@ -110,11 +117,17 @@
                     </DataGridTextColumn.CellStyle>
                 </DataGridTextColumn>
 
-                <DataGridTextColumn Header="Forced Reason Phase 2" MaxWidth="150" ElementStyle="{StaticResource center}"
-                                    Binding="{Binding ForcedReason[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                <DataGridTextColumn MaxWidth="150" ElementStyle="{StaticResource center}"
+                                    Binding="{Binding Reason[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                                     HeaderStyle="{StaticResource centerHeader}" Visibility="{Binding Data.Channels, 
                                     Source={StaticResource proxy}, Converter={StaticResource ColumnCollapse}, 
                                     ConverterParameter={StaticResource IntOne}}">
+                    <DataGridTextColumn.Header>
+                        <TextBlock>
+                            <Run Text="Reason Phase 2" />
+                            <Run Text="*" Foreground="Red" />
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
                     <DataGridTextColumn.CellStyle>
                         <Style TargetType="DataGridCell">
                             <Style.Triggers>
@@ -127,11 +140,25 @@
                     </DataGridTextColumn.CellStyle>
                 </DataGridTextColumn>
 
-                <DataGridTextColumn Header="Breaker" MinWidth="50" MaxWidth="125" Binding="{Binding BreakerNumber, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource center}"
-                                    HeaderStyle="{StaticResource centerHeader}" />
+                <DataGridTextColumn MinWidth="50" MaxWidth="125" Binding="{Binding BreakerNumber, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource center}"
+                                    HeaderStyle="{StaticResource centerHeader}">
+                    <DataGridTextColumn.Header>
+                        <TextBlock>
+                            <Run Text="Breaker" />
+                            <Run Text="*" Foreground="Red" />
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
+                </DataGridTextColumn>
 
-                <DataGridTextColumn Header="Apartment" MinWidth="50" MaxWidth="200" Binding="{Binding ApartmentNumber, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource center}" 
-                                    HeaderStyle="{StaticResource centerHeader}" />
+                <DataGridTextColumn MinWidth="50" MaxWidth="200" Binding="{Binding ApartmentNumber, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource center}" 
+                                    HeaderStyle="{StaticResource centerHeader}">
+                    <DataGridTextColumn.Header>
+                        <TextBlock>
+                            <Run Text="Apartment" />
+                            <Run Text="*" Foreground="Red" />
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
+                </DataGridTextColumn>
 
                 <DataGridTextColumn Header="Comment" MinWidth="50" MaxWidth="200" Binding="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource center}" 
                                     HeaderStyle="{StaticResource centerHeader}" />

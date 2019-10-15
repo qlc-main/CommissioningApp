@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Hellang.MessageBus;
+using System;
 
 namespace WpfCommApp
 {
@@ -19,39 +20,16 @@ namespace WpfCommApp
         private IAsyncCommand _closeSerial;
 
         private SerialComm _serial;
-        private string _comport;
         private int _idx;
         private bool _busy;
         private bool? _connected;
-        private ObservableCollection<string> _comPorts;
+        private string _comPort;
+        private ObservableCollection<Serial> _comPorts;
 
         #endregion
 
         #region Properties
-        public string Name
-        {
-            get
-            {
-                return "Serial Connection";
-            }
-        }
-
-        public string COM
-        {
-            get
-            {
-                return _comport;
-            }
-
-            set
-            {
-                if (value != _comport)
-                {
-                    _comport = value;
-                    OnPropertyChanged(nameof(COM));
-                }
-            }
-        }
+        public string Name { get { return "Serial Connection"; } }
 
         public bool IsBusy
         {
@@ -103,13 +81,13 @@ namespace WpfCommApp
             }
         }
 
-        public int Idx
+        public int IDX
         {
             get { return _idx; }
             set { if (_idx != value) _idx = value; }
         }
 
-        public ObservableCollection<string> ComPorts
+        public ObservableCollection<Serial> ComPorts
         {
             get
             {
@@ -124,6 +102,18 @@ namespace WpfCommApp
 
         public bool Completed { get; private set; }
 
+        public string COMPORT
+        {
+            get { return _comPort; }
+            set
+            {
+                if (_comPort != value)
+                {
+                    _comPort = value;
+                    OnPropertyChanged(nameof(COMPORT));
+                }
+            }
+        }
         #endregion
 
         #region Commands
@@ -132,9 +122,7 @@ namespace WpfCommApp
             get
             {
                 if (_serialConn == null)
-                {
                     _serialConn = new AsyncRelayCommand(SetupSerial, CanExec);
-                }
 
                 return _serialConn;
             }
@@ -145,9 +133,7 @@ namespace WpfCommApp
             get
             {
                 if (_portSelect == null)
-                {
-                    _portSelect = new RelayCommand(p => ChangePort((string) p));
-                }
+                    _portSelect = new RelayCommand(p => ChangePort(p as string));
 
                 return _portSelect;
             }
@@ -168,10 +154,13 @@ namespace WpfCommApp
         #region Constructor
         public ConnectViewModel()
         {
-            COM = "          ";
-            ComPorts = new ObservableCollection<string>(SerialPort.GetPortNames());
+            ComPorts = new ObservableCollection<Serial>();
+            foreach (string s in SerialPort.GetPortNames())
+                ComPorts.Add(new Serial(s, true));
+
             IsBusy = false;
             IsConnected = null;
+            COMPORT = "          ";
         }
 
         #endregion
@@ -182,36 +171,50 @@ namespace WpfCommApp
             try
             {
                 IsBusy = true;
-                List<SerialComm> comms = (Application.Current.Properties["serial"] as List<SerialComm>);
-                if (comms.Count == 1)
+                ObservableCollection<SerialComm> comms = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>);
+                ObservableCollection<Meter> meters = (Application.Current.Properties["meters"] as ObservableCollection<Meter>);
+                _serial = comms.Last();
+                _comPort = "COM3";      // delete, used for testing
+                if (_serial.IsOpen)
                 {
-                    _serial = comms[0];
-                    Idx = 0;
-                }
-                else
-                {
+                    meters.Add(new Meter());
                     comms.Add(new SerialComm());
                     _serial = comms.Last();
-                    Idx = comms.Count - 1;
+                    _comPort = "COM4";      // delete, used for testing
                 }
 
-                List<Meter> meters = (Application.Current.Properties["meters"] as List<Meter>);
-                string id = _serial.SetupSerial(_comport);
-                meters[Idx].ID = id;
+                IDX = comms.Count - 1;
+
+                // Logs into meter and retrieves it's ID
+                string id = _serial.SetupSerial(_comPort);
+                var query = ComPorts.Select((value, index) => new { value, index })
+                        .Where(x => x.value.Name == _comPort)
+                        .Select(x => x.index)
+                        .Take(1);
+                ComPorts[query.ElementAt(0)].Used = true;
+                meters[IDX].ID = id;
+
+                // Sets the size of the meter based on the type of meter connected
+                string version = _serial.GetVersion();
+                string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
+                if (lines[2].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1].StartsWith("593"))
+                    meters[IDX].Size = 12;
+
                 IsConnected = true;
                 Completed = true;
 
                 // Send message to enable forward button
                 (Application.Current.Properties["MessageBus"] as MessageBus)
-                    .Publish(new ScreenComplete());
+                    .Publish(new ScreenComplete("switch"));
             }
-            catch
+            catch 
             {
                 IsConnected = false;
             }
             finally
             {
                 IsBusy = false;
+                COMPORT = "          ";
             }
         }
 
@@ -231,7 +234,7 @@ namespace WpfCommApp
 
         private void ChangePort(string p)
         {
-            COM = p;
+            COMPORT = p;
         }
 
         private bool CanExec()

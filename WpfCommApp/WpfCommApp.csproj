@@ -72,6 +72,9 @@
     <Compile Include="Helpers\ObservableObject.cs" />
     <Compile Include="Helpers\RelayCommand.cs" />
     <Compile Include="Helpers\SerialComm.cs" />
+    <Compile Include="Objects\Serial.cs" />
+    <Compile Include="Tabs\ContentTab.cs" />
+    <Compile Include="Tabs\ITab.cs" />
     <Compile Include="Messages\ScreenComplete.cs" />
     <Compile Include="Objects\Channel.cs" />
     <Compile Include="Objects\Meter.cs" />
@@ -92,12 +95,19 @@
     <Compile Include="Views\ConnectView.xaml.cs">
       <DependentUpon>ConnectView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\ContentTabView.xaml.cs">
+      <DependentUpon>ContentTabView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\LoginView.xaml.cs">
       <DependentUpon>LoginView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\ReviewView.xaml.cs">
       <DependentUpon>ReviewView.xaml</DependentUpon>
     </Compile>
+    <Page Include="Views\ContentTabView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

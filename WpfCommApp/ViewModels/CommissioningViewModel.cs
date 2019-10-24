@@ -13,25 +13,47 @@ namespace WpfCommApp
 {
     public class CommissioningViewModel : ObservableObject, IPageViewModel
     {
+
         #region Fields
 
-        private Meter _meter;
-        private string[][] _phaseAText;
-        private string[][] _phaseBText;
-        private string[] _oldPhaseAText;
-        private string[] _oldPhaseBText;
-        private Dictionary<string, int>[][] _diff;
         private bool _break;
         private bool _completed;
+
+        private Dictionary<string, int>[][] _diff;
+
         private int _idx;
 
+        private Meter _meter;
+
+        private string[] _oldPhaseAText;
+        private string[] _oldPhaseBText;
+        private string[][] _phaseAText;
+        private string[][] _phaseBText;
+
         private SerialComm _serial;
-        private IAsyncCommand _pd;
+
+        private ICommand _pd;
         private ICommand _spd;
 
         #endregion
 
         #region Properties
+
+        public ObservableCollection<Channel> Channels
+        {
+            get
+            {
+                if (_meter == null)
+                    _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
+
+                return _meter.Channels;
+            }
+            set
+            {
+                _meter.Channels = value;
+                OnPropertyChanged(nameof(Channels));
+            }
+        }
 
         public bool Completed
         {
@@ -57,13 +79,13 @@ namespace WpfCommApp
             }
         }
 
-        public string Name { get { return "Commissioning"; } }
-
         public int IDX
         {
             get { return _idx; }
             set { if (_idx != value) _idx = value; }
         }
+
+        public string Name { get { return "Commissioning"; } }
 
         public string[][] PhaseAText
         {
@@ -75,32 +97,16 @@ namespace WpfCommApp
             get { return _phaseBText; }
         }
 
-        public ObservableCollection<Channel> Channels
-        {
-            get
-            {
-                if (_meter == null)
-                    _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
-
-                return _meter.Channels;
-            }
-            set
-            {
-                _meter.Channels = value;
-                OnPropertyChanged(nameof(Channels));
-            }
-        }
-
         #endregion
 
         #region Commands
 
-        public IAsyncCommand StartAsync
+        public ICommand StartAsync
         {
             get
             {
                 if (_pd == null)
-                    _pd = new AsyncRelayCommand(PD, () => { return true; });
+                    _pd = new RelayCommand(p => GetPD());
 
                 return _pd;
             }
@@ -133,67 +139,83 @@ namespace WpfCommApp
 
         #region Methods
 
-        private async Task PD()
+        private void GetPD()
         {
-            _serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>)[IDX];
-            _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
-            OnPropertyChanged(nameof(Channels));
-
-            int length = Channels.Count;
-            _diff[0] = new Dictionary<string, int>[length];
-            _diff[1] = new Dictionary<string, int>[length];
-            _oldPhaseAText = new string[length];
-            _oldPhaseBText = new string[length];
-
-            for (int i = 0; i < 4; i++)
-            {
-                PhaseAText[i] = new string[length];
-                PhaseBText[i] = new string[length];
-
-                if (i == 3)
-                {
-                    int cnt = 0;
-                    for (int j = 0; j < length; j++)
-                    {
-                        int res = (cnt++ % 3);
-                        PhaseAText[i][j] = res == 0 ? "A" : res == 1 ? "B" : "C";
-                        res = (cnt++ % 3);
-                        PhaseBText[i][j] = res == 0 ? "A" : res == 1 ? "B" : "C";
-                        _diff[0][j] = new Dictionary<string, int>() { { "same", 0 }, { "diff", 0 } };
-                        _diff[1][j] = new Dictionary<string, int>() { { "same", 0 }, { "diff", 0 } };
-                        _oldPhaseAText[j] = string.Empty;
-                        _oldPhaseBText[j] = string.Empty;
-                    }
-                }
-                else
-                {
-                    for (int j = 0; j < length; j++)
-                    {
-                        PhaseAText[i][j] = string.Empty;
-                        PhaseBText[i][j] = string.Empty;
-                    }
-                }
-            }
-
-            while (true) {
-                try
-                {
-                    processBuffer(_serial.PD());
-                    OnPropertyChanged(nameof(PhaseAText));
-                    OnPropertyChanged(nameof(PhaseBText));
-                    Scan();
-                    Detection();
-                    _oldPhaseAText = PhaseAText[0].Clone() as string[];
-                    _oldPhaseBText = PhaseBText[0].Clone() as string[];
-                    if (_break)
-                        break;
-                }
-                finally { }
-            }
+            Task.Run(PD);
         }
 
-        private void processBuffer(string buffer)
+        private void SPD()
         {
+            _break = true;
+        }
+
+        private async Task PD()
+        {
+            // Initialize variables if this is the first time 
+            if (_serial == null)
+            {
+                _serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>)[IDX];
+                _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
+                OnPropertyChanged(nameof(Channels));
+
+                int length = Channels.Count;
+                _diff[0] = new Dictionary<string, int>[length];
+                _diff[1] = new Dictionary<string, int>[length];
+                _oldPhaseAText = new string[length];
+                _oldPhaseBText = new string[length];
+
+                for (int i = 0; i < 4; i++)
+                {
+                    PhaseAText[i] = new string[length];
+                    PhaseBText[i] = new string[length];
+
+                    if (i == 3)
+                    {
+                        int cnt = 0;
+                        for (int j = 0; j < length; j++)
+                        {
+                            int res = (cnt++ % 3);
+                            PhaseAText[i][j] = res == 0 ? "A" : res == 1 ? "B" : "C";
+                            res = (cnt++ % 3);
+                            PhaseBText[i][j] = res == 0 ? "A" : res == 1 ? "B" : "C";
+                            _diff[0][j] = new Dictionary<string, int>() { { "same", 0 }, { "diff", 0 } };
+                            _diff[1][j] = new Dictionary<string, int>() { { "same", 0 }, { "diff", 0 } };
+                            _oldPhaseAText[j] = string.Empty;
+                            _oldPhaseBText[j] = string.Empty;
+                        }
+                    }
+                    else
+                    {
+                        for (int j = 0; j < length; j++)
+                        {
+                            PhaseAText[i][j] = string.Empty;
+                            PhaseBText[i][j] = string.Empty;
+                        }
+                    }
+                }
+            }
+
+            // wait for the value to be reset
+            while (_break) { }
+
+            while (true)
+            {
+                Process();
+                Scan();
+                Detection();
+
+                if (_break)
+                    break;
+            }
+
+            // reset break value so we can continuously execute this function 
+            // if we need to revisit this page
+            _break = false;
+        }
+
+        private void Process()
+        {
+            string buffer = _serial.PD();
             foreach (string s in buffer.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries))
             {
                 string[] cols = s.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
@@ -226,12 +248,13 @@ namespace WpfCommApp
                     else
                         _phaseBText[2][meter] = temp.ToString("0.00");
                 }
-            }
-        }
 
-        private void SPD()
-        {
-            _break = true;
+                if (_break)
+                    return;
+            }
+
+            OnPropertyChanged(nameof(PhaseAText));
+            OnPropertyChanged(nameof(PhaseBText));
         }
 
         private void Detection()
@@ -290,9 +313,14 @@ namespace WpfCommApp
                     }
                 }
 
+                if (_break)
+                    return;
                 //ThreadPool.QueueUserWorkItem(new WaitCallback(Compare), new object[] { _oldPhaseAText[0], _phaseAText[0], i, 'a' });
                 //ThreadPool.QueueUserWorkItem(new WaitCallback(Compare), new object[] { _oldPhaseBText[0], _phaseBText[0], i, 'b' });
             }
+
+            _oldPhaseAText = PhaseAText[0].Clone() as string[];
+            _oldPhaseBText = PhaseBText[0].Clone() as string[];
         }
 
         private void Scan()
@@ -303,19 +331,14 @@ namespace WpfCommApp
                     Completed = true;
                     return;
                 }
+
+                if (_break)
+                    return;
             }
 
             Completed = false;
         }
         
-        /*
-        private void Compare(object state)
-        {
-            object[] array = state as object[];
-            if ( array[0][array[2]] != array[1][array[2]] )
-                if (array)
-        }
-        */
         #endregion
     }
 }

@@ -24,5 +24,13 @@ namespace WpfCommApp
         {
             InitializeComponent();
         }
+
+        private void UserControl_DCChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)
+        {
+            if (e.OldValue == null)
+                (e.NewValue as ReviewViewModel).Monitor.Execute(null);
+            else
+                (e.OldValue as ReviewViewModel).Stop.Execute(null);
+        }
     }
 }

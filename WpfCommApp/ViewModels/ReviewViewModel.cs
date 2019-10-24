@@ -9,16 +9,35 @@ namespace WpfCommApp
     public class ReviewViewModel : ObservableObject, IPageViewModel
     {
         #region Fields
-        private Meter _meter;
-        private IAsyncCommand _monitor;
-        private ICommand _stop;
-        private int _idx;
-        private bool _completed;
         private bool _break;
+        private bool _completed;
+        private string[] _ctTypes;
+        private int _idx;
+
+        private Meter _meter;
+
+        private ICommand _monitor;
+        private ICommand _stop;
 
         #endregion
 
         #region Properties
+
+        public ObservableCollection<Channel> Channels
+        {
+            get
+            {
+                if (_meter == null)
+                    _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
+
+                return _meter.Channels;
+            }
+            set
+            {
+                _meter.Channels = value;
+                OnPropertyChanged(nameof(Channels));
+            }
+        }
 
         public bool Completed
         {
@@ -45,20 +64,9 @@ namespace WpfCommApp
             }
         }
 
-        public ObservableCollection<Channel> Channels
+        public string[] CTTypes
         {
-            get
-            {
-                if (_meter == null)
-                    _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
-
-                return _meter.Channels;
-            }
-            set
-            {
-                _meter.Channels = value;
-                OnPropertyChanged(nameof(Channels));
-            }
+            get { return _ctTypes; }
         }
 
         public int IDX
@@ -79,12 +87,12 @@ namespace WpfCommApp
             }
         }
 
-        public IAsyncCommand Monitor
+        public ICommand Monitor
         {
             get
             {
                 if (_monitor == null)
-                    _monitor = new AsyncRelayCommand(Watcher, () => { return true; });
+                    _monitor = new RelayCommand(p => LaunchWatcher());
 
                 return _monitor;
             }
@@ -100,6 +108,7 @@ namespace WpfCommApp
                 return _stop;
             }
         }
+        
         #endregion
 
         #region Constructors
@@ -107,6 +116,7 @@ namespace WpfCommApp
         public ReviewViewModel(int idx)
         {
             _idx = idx;
+            _ctTypes = new string[3] { "flex", "solid", "split" };
         }
 
         #endregion
@@ -116,8 +126,17 @@ namespace WpfCommApp
         #endregion
 
         #region Commands
+
+        private void LaunchWatcher()
+        {
+            Task.Run(Watcher);
+        }
+
         private async Task Watcher()
         {
+            // loop here until break value is reset before entering loop
+            while (_break) { }
+
             while (true)
             {
                 System.Threading.Thread.Sleep(2500);
@@ -138,6 +157,8 @@ namespace WpfCommApp
                 if (_break)
                     break;
             }
+
+            _break = false;
         }
 
         private void Cease()

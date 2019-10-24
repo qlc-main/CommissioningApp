@@ -11,25 +11,137 @@ namespace WpfCommApp
     public class Channel : ObservableObject
     {
         #region Fields
+
+        private string _apartmentNumber;
+        private string _breakerNumber;
+        private string _ctType;
         private readonly int _id;
-        private string _primary;
+        private bool[] _forced;
+        private string _notes;
         private bool? _phase1;
         private bool? _phase2;
-        private bool[] _forced;
+        private string _primary;
         private string _secondary;
-        private string _breakerNumber;
-        private string _apartmentNumber;
-        private string _notes;
+        private string _serial;
         private string[] _reason;
 
         #endregion
 
         #region Properties
+
+        public string ApartmentNumber
+        {
+            get
+            {
+                return _apartmentNumber;
+            }
+            set
+            {
+                if (_apartmentNumber != value)
+                    _apartmentNumber = value;
+            }
+        }
+
+        public string BreakerNumber
+        {
+            get
+            {
+                return _breakerNumber;
+            }
+            set
+            {
+                if (_breakerNumber != value)
+                    _breakerNumber = value;
+            }
+        }
+
+        public bool Commissioned
+        {
+            get
+            {
+                return _phase1 == true && _phase2 == true;
+            }
+        }
+
+        public string CTType
+        {
+            get { return _ctType; }
+            set
+            {
+                if (_ctType != value)
+                {
+                    _ctType = value;
+                    OnPropertyChanged(nameof(CTType));
+                }
+            }
+        }
+
+        public bool[] Forced
+        {
+            get { return _forced; }
+            set { _forced = value; }
+        }
+
         public int ID
         {
             get
             {
                 return _id;
+            }
+        }
+
+        public string Notes
+        {
+            get { return _notes; }
+            set
+            {
+                if (_notes != value)
+                {
+                    _notes = value;
+                    OnPropertyChanged(nameof(Notes));
+                }
+            }
+        }
+
+        public bool? Phase1
+        {
+            get { return _phase1; }
+            set
+            {
+                if (_phase1 != value)
+                {
+                    _phase1 = value;
+                    if (value == null)
+                    {
+                        _forced[0] = true;
+                        Reason = new string[] { "NC", _reason[1] };
+                    }
+                    else
+                        Reason = new string[] { string.Empty, _reason[1] };
+
+                    OnPropertyChanged(nameof(Phase1));
+                }
+            }
+        }
+
+        public bool? Phase2
+        {
+            get { return _phase2; }
+            set
+            {
+                if (_phase2 != value)
+                {
+                    _phase2 = value;
+                    if (value == null)
+                    {
+                        _forced[1] = true;
+                        Reason = new string[] { _reason[0], "NC" };
+                    }
+                    else
+                        Reason = new string[] { _reason[0], string.Empty };
+
+                    OnPropertyChanged(nameof(Phase2));
+                }
             }
         }
 
@@ -92,85 +204,16 @@ namespace WpfCommApp
             }
         }
 
-        public bool[] Forced
+        public string Serial
         {
-            get { return _forced; }
-            set { _forced = value; }
-        }
-
-        public bool? Phase1
-        {
-            get { return _phase1; }
+            get { return _serial; }
             set
             {
-                if (_phase1 != value)
+                if (_serial != value)
                 {
-                    _phase1 = value;
-                    if (value == null)
-                    {
-                        _forced[0] = true;
-                        Reason = new string[] { "NC", _reason[1] };
-                    }
-                    else
-                        Reason = new string[] { string.Empty, _reason[1] };
-
-                    OnPropertyChanged(nameof(Phase1));
+                    _serial = value;
+                    OnPropertyChanged(nameof(Serial));
                 }
-            }
-        }
-
-        public bool? Phase2
-        {
-            get { return _phase2; }
-            set
-            {
-                if (_phase2 != value)
-                {
-                    _phase2 = value;
-                    if (value == null)
-                    {
-                        _forced[1] = true;
-                        Reason = new string[] { _reason[0], "NC" };
-                    }
-                    else
-                        Reason = new string[] { _reason[0], string.Empty };
-
-                    OnPropertyChanged(nameof(Phase2));
-                }
-            }
-        }
-
-        public bool Commissioned
-        {
-            get
-            {
-                return _phase1 == true && _phase2 == true;
-            }
-        }
-
-        public string BreakerNumber
-        {
-            get
-            {
-                return _breakerNumber;
-            }
-            set
-            {
-                if (_breakerNumber != value)
-                    _breakerNumber = value;
-            }
-        }
-
-        public string ApartmentNumber
-        {
-            get
-            {
-                return _apartmentNumber;
-            }
-            set
-            {
-                if (_apartmentNumber != value)
-                    _apartmentNumber = value;
             }
         }
 
@@ -181,19 +224,6 @@ namespace WpfCommApp
             {
                 _reason = value;
                 OnPropertyChanged(nameof(Reason));
-            }
-        }
-
-        public string Notes
-        {
-            get { return _notes; }
-            set
-            {
-                if (_notes != value)
-                {
-                    _notes = value;
-                    OnPropertyChanged(nameof(Notes));
-                }
             }
         }
 
@@ -212,6 +242,8 @@ namespace WpfCommApp
             _apartmentNumber = string.Empty;
             _breakerNumber = string.Empty;
             _reason = new string[2] { "NC", "NC" };
+            _serial = "";
+            _ctType = "solid";
         }
 
         #endregion
@@ -221,14 +253,14 @@ namespace WpfCommApp
         public void Save (StreamWriter sw)
         {
             if (Phase1 == true)
-                sw.WriteLine(string.Format("{0},{1},{2}/{3},{4},{5}", ID * 2 - 1, ApartmentNumber, Primary, Secondary, BreakerNumber, Reason[0] + " - " + Notes));
+                sw.WriteLine(string.Format("{0},{1},{2},{3},{4}/{5},{6},{7}", ID * 2 - 1, Serial, ApartmentNumber, BreakerNumber, Primary, Secondary, int.Parse(Primary) / 100, Reason[0] + " - " + Notes));
             else
-                sw.WriteLine(string.Format("{0},Not Commissionned,Not Commissionned,Not Commissionned,Not Commissionned,Not Commissionned", ID * 2 - 1));
+                sw.WriteLine(string.Format("{0},{1},Not Commissioned,Not Commissioned,Not Commissioned,Not Commissioned,Not Commissioned", ID * 2 - 1, Serial));
 
             if (Phase2 == true)
-                sw.WriteLine(string.Format("{0},{1},{2}/{3},{4},{5}", ID * 2, ApartmentNumber, Primary, Secondary, BreakerNumber, Reason[1] + " - " + Notes));
+                sw.WriteLine(string.Format("{0},{1},{2},{3},{4}/{5},{6},{7}", ID * 2, Serial, ApartmentNumber, BreakerNumber, Primary, Secondary, int.Parse(Primary) / 100, Reason[1] + " - " + Notes));
             else
-                sw.WriteLine(string.Format("{0},Not Commissionned,Not Commissionned,Not Commissionned,Not Commissionned,Not Commissionned", ID * 2));
+                sw.WriteLine(string.Format("{0},{1},Not Commissioned,Not Commissioned,Not Commissioned,Not Commissioned,Not Commissioned", ID * 2, Serial));
         }
 
         #endregion

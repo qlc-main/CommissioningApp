@@ -6,6 +6,7 @@
     <Application.Resources>
         <local:DefaultConvert x:Key="DefaultConvert" />
         
+        <!-- Led Control styling -->
         <Style TargetType="local:LedControl">
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="BorderBrush" Value="Black"/>
@@ -70,6 +71,25 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- Centers content for textblock elements in Datagrid -->
+        <Style TargetType="TextBlock" x:Key="center">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="5 0" />
+        </Style>
+
+        <!-- Centers content for textblock elements in Datagrid -->
+        <Style TargetType="ComboBox" x:Key="centerCB">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="5 0" />
+        </Style>
+
+        <!-- Centers content for columns in header row -->
+        <Style TargetType="DataGridColumnHeader" x:Key="centerHeader">
+            <Setter Property="HorizontalAlignment" Value="Center" />
         </Style>
         
     </Application.Resources>

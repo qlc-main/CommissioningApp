@@ -13,9 +13,14 @@ namespace WpfCommApp
     public class ConfigurationViewModel : ObservableObject, IPageViewModel
     {
         #region Fields
-        private Meter _meter;
-        private bool _completed;
+
         private int _idx;
+        private bool _completed;
+        private string[] _ctTypes;
+
+        private Meter _meter;
+
+        private ICommand _notCommissioned;
 
         #endregion
 
@@ -56,10 +61,15 @@ namespace WpfCommApp
                 if (_meter == null)
                 {
                     Meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
-
+                    var serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>)[IDX];
+                    string[] serials = serial.GetChildSerial().Split(',');
                     // this code will move when i make the number of channels dependent on user input
                     for (int i = 0; i < _meter.Size; i++)
+                    {
                         _meter.Channels.Add(new Channel(i + 1));
+                        //_meter.Channels[i].Serial = serials[i];
+                        _meter.Channels[i].Serial = i < serials.Length ? serials[i] : "";       // delete later, used for debugging purposes
+                    }
 
                     // to here 
                 }
@@ -73,11 +83,27 @@ namespace WpfCommApp
             }
         }
 
+        public string[] CTTypes
+        {
+            get { return _ctTypes; }
+        }
+
         public string Name { get { return "Configuration"; } }
 
         #endregion
 
         #region Commands
+
+        public ICommand NotCommissioned
+        {
+            get
+            {
+                if (_notCommissioned == null)
+                    _notCommissioned = new RelayCommand(p => Uncommission((int) p));
+
+                return _notCommissioned;
+            }
+        }
 
         #endregion
 
@@ -87,11 +113,20 @@ namespace WpfCommApp
         {
             _idx = idx;
             _completed = true;
+            _ctTypes = new string[3] { "flex", "solid", "split" };
         }
 
         #endregion
 
         #region Methods
+
+        private void Uncommission(int id)
+        {
+            Channels[id - 1].Primary = "";
+            Channels[id - 1].Secondary = "";
+            Channels[id - 1].CTType = "";
+            OnPropertyChanged(nameof(Channels));
+        }
 
         #endregion
     }

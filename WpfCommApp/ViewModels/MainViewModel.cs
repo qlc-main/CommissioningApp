@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Input;
 using System.Threading.Tasks;
 using System.IO;
+using System.Threading;
 
 namespace WpfCommApp
 {
@@ -24,6 +25,7 @@ namespace WpfCommApp
         private ObservableCollection<ContentTab> _tabs;
         private ObservableCollection<ContentTab> _menuTabs;
         private ObservableCollection<ContentTab> _viewTabs;
+
         private int _tabIndex;
 
         private bool _forwardEnabled;
@@ -32,12 +34,10 @@ namespace WpfCommApp
         #endregion
 
         #region Properties
+
         public bool ForwardEnabled
         {
-            get
-            {
-                return _forwardEnabled;
-            }
+            get { return _forwardEnabled; }
 
             set
             {
@@ -51,10 +51,7 @@ namespace WpfCommApp
 
         public bool BackwardEnabled
         {
-            get
-            {
-                return _backwardEnabled;
-            }
+            get { return _backwardEnabled; }
 
             set
             {
@@ -63,15 +60,6 @@ namespace WpfCommApp
                     _backwardEnabled = value;
                     OnPropertyChanged(nameof(BackwardEnabled));
                 }
-            }
-        }
-
-        public ObservableCollection<ContentTab> Tabs
-        {
-            get { return _tabs; }
-            set
-            {
-                _tabs = value;
             }
         }
 
@@ -125,22 +113,21 @@ namespace WpfCommApp
             set { _serial = value; OnPropertyChanged(nameof(Serial)); }
         }
 
-        public ObservableCollection<ContentTab> ViewTabs
+        public ObservableCollection<ContentTab> Tabs
         {
-            get
-            {
-                return _viewTabs;
-            }
+            get { return _tabs; }
+            set { _tabs = value; }
         }
 
         public ObservableCollection<ContentTab> MenuTabs
         {
-            get
-            {
-                return _menuTabs;
-            }
+            get { return _menuTabs; }
         }
 
+        public ObservableCollection<ContentTab> ViewTabs
+        {
+            get { return _viewTabs; }
+        }
 
         #endregion
 
@@ -151,9 +138,7 @@ namespace WpfCommApp
             get
             {
                 if (_forwardPage == null)
-                {
                     _forwardPage = new RelayCommand(p => Forward());
-                }
 
                 return _forwardPage;
             }
@@ -164,9 +149,7 @@ namespace WpfCommApp
             get
             {
                 if (_backwardPage == null)
-                {
                     _backwardPage = new RelayCommand(p => Backward());
-                }
 
                 return _backwardPage;
             }
@@ -229,6 +212,7 @@ namespace WpfCommApp
         #endregion
 
         #region Methods
+
         private void Forward()
         {
             if (TabIndex == 0)
@@ -343,6 +327,11 @@ namespace WpfCommApp
             else if (TabIndex == idx)
             {
                 TabIndex -= 1;
+                if (p.Contains("(") && p.Contains(")"))
+                {
+                    var meters = (Application.Current.Properties["meters"] as ObservableCollection<Meter>);
+                    meters[idx - 1].Save(string.Join("//", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
+                }
             }
             else
             {
@@ -368,8 +357,8 @@ namespace WpfCommApp
 
         private async Task SaveMeters()
         {
-            string dir = Directory.GetCurrentDirectory();
-            foreach (Meter m in (Application.Current.Properties["meters"] as ObservableCollection<Meter>))
+            string dir = string.Join("//", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
+            foreach (Meter m in (System.Windows.Application.Current.Properties["meters"] as ObservableCollection<Meter>))
                 m.Save(dir);
         }
 

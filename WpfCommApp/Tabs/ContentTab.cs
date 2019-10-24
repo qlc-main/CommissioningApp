@@ -2,7 +2,7 @@
 
 namespace WpfCommApp
 {
-    public class ContentTab : ObservableObject, ITab
+    public class ContentTab : ObservableObject
     {
         #region Fields
         private int _idx;

@@ -34,11 +34,11 @@ namespace WpfCommApp
         }
     }
 
-    public class ColorRowConverter : IValueConverter
+    public class Disable : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            return ((int) value - 1) % 3;
+            return (value as string) == "NC";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

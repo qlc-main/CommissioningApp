@@ -191,7 +191,11 @@ namespace WpfCommApp
                         .Where(x => x.value.Name == _comPort)
                         .Select(x => x.index)
                         .Take(1);
-                ComPorts[query.ElementAt(0)].Used = true;
+
+                // delete if statement later this is more so for debugging purposes
+                if (query.Count() != 0)
+                    ComPorts[query.ElementAt(0)].Used = true;
+
                 meters[IDX].ID = id;
 
                 // Sets the size of the meter based on the type of meter connected

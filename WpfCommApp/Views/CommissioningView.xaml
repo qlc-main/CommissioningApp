@@ -3,42 +3,19 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-      xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
       xmlns:local="clr-namespace:WpfCommApp"
       xmlns:sys="clr-namespace:System;assembly=mscorlib"
       mc:Ignorable="d" 
-      d:DesignHeight="350" d:DesignWidth="800">
+      d:DesignHeight="350" d:DesignWidth="800" DataContextChanged="UserControl_DCChanged">
 
     <UserControl.Resources>
         <local:StringArrayToStringConverter x:Key="StringArrayToStringConverter" />
         <local:DefaultConvert x:Key="DefaultConvert" />
-        <local:ColorRowConverter x:Key="ColorRowConverter" />
         <local:BindingProxy x:Key="proxy" Data="{Binding }" />
-
-        <!-- Centers content for textblock elements in Datagrid -->
-        <Style TargetType="TextBlock" x:Key="center">
-            <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="5 0" />
-        </Style>
-
-        <!-- Centers content for columns in header row -->
-        <Style TargetType="DataGridColumnHeader" x:Key="centerHeader">
-            <Setter Property="HorizontalAlignment" Value="Center" />
-        </Style>
 
     </UserControl.Resources>
 
     <Grid>
-        <i:Interaction.Triggers>
-            <i:EventTrigger EventName="Loaded">
-                <i:InvokeCommandAction Command="{Binding StartAsync}" />
-            </i:EventTrigger>
-            <i:EventTrigger EventName="Unloaded">
-                <i:InvokeCommandAction Command="{Binding StopAsync}" />
-            </i:EventTrigger>
-        </i:Interaction.Triggers>
-
         <DataGrid Margin="10" Grid.RowSpan="4" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" SelectionUnit="Cell" 
                     HeadersVisibility="Column" Background="#f2f2f2" RowBackground="white" AlternatingRowBackground="#ffcccb" 
                     CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" 
@@ -47,6 +24,9 @@
                 <DataGridTextColumn Header="Meter" Width="Auto" ElementStyle="{StaticResource center}" Binding="{Binding ID, Mode=OneWay}"
                                     HeaderStyle="{StaticResource centerHeader}" />
 
+                <DataGridTextColumn Header="Serial #" Binding="{Binding Serial, Mode=OneWay}" 
+                                        ElementStyle="{StaticResource center}" HeaderStyle="{StaticResource centerHeader}" />
+                
                 <DataGridTemplateColumn Header="Phase 1 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>

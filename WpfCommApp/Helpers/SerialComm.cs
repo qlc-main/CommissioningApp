@@ -34,24 +34,27 @@ namespace WpfCommApp
 
         #endregion
 
+        #region Constructor
         public SerialComm()
         {
 
         }
+        #endregion
 
         #region Methods
+
         public string SetupSerial(string com)
         {
             _com = com;
             _serial = new SerialPort(com, 19200);
             _serial.Open();
 
-            Login();
+            Login(true);
 
             return serialNo;
         }
 
-        public void Login()
+        public bool Login(bool initial)
         {
             int attempts = 0;
             while (true)
@@ -60,16 +63,15 @@ namespace WpfCommApp
                 if (attempts > 1)
                 {
                     carriageReturn = true;
-                    Thread.Sleep(2000);
+                    Thread.Sleep(1000);
                     _serial.DiscardInBuffer();
                     _serial.DiscardOutBuffer();
-                    //WriteToSerial("");
-                    Thread.Sleep(2000);
+                    Thread.Sleep(1500);
                 }
                 else if (attempts == 10)
                 {
                     Console.WriteLine("Experiencing an issue with communicating with the meter head.");
-                    Environment.Exit(-1);
+                    return false;
                 }
 
                 WriteToSerial("attn -D");
@@ -85,7 +87,6 @@ namespace WpfCommApp
                 attempts++;
             }
 
-            //ReadBuffer();
             Console.WriteLine(serialBuffer);
             string[] split = serialBuffer.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
 
@@ -95,30 +96,41 @@ namespace WpfCommApp
                 serialNo = split[0];
 
             attempts = 0;
-            while (attempts < 50)
+            while (attempts < 10)
             {
                 WriteToSerial(String.Format("attn -S{0} {1}", serialNo, pwds[attempts % 8]));
-                ReadBuffer();
+                ReadBuffer(!initial);
                 Console.Write(serialBuffer + " ");
                 if (prompt.IsMatch(serialBuffer))
-                    break;
+                    return true;
                 Console.Write("\r\n");
 
                 attempts++;
             }
 
             if (attempts == 50)
-            {
                 Console.WriteLine("Unable to successfully login, exitting program now!");
-                Environment.Exit(-2);
-            }
+
+            return false;
         }
 
         public string PD()
         {
             serialBuffer = "";
             WriteToSerial("mscan -Gp", true);
-            while (_serial.BytesToRead == 0) { }
+            int failed = 0;
+            while (_serial.BytesToRead == 0)
+            {
+                if (++failed % 10 == 0)
+                {
+                    _serial.DiscardInBuffer();
+                    _serial.DiscardOutBuffer();
+                    if (Login(false))
+                        WriteToSerial("mscan -Gp", true);
+                }
+
+                Thread.Sleep(500);
+            }
             ReadBuffer(true);
             Console.Write(serialBuffer + ' ');
             return serialBuffer;
@@ -139,6 +151,23 @@ namespace WpfCommApp
             return serialBuffer;
         }
 
+        public string GetChildSerial()
+        {
+            string buffer = PD();
+            string ret = "";
+            foreach(string line in buffer.Split(new char[] { '\n', '\r'}, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string[] entries = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+                if (entries.Length != 10 || line.Contains("$lot"))
+                    continue;
+
+                if (!ret.Contains(entries[1]))
+                    ret += entries[1] + ",";
+            }
+
+            return ret.TrimEnd(',');
+        }
+
         #region Serial Communication Functions
 
         private void WriteToSerial(string data, bool echo = true)
@@ -154,9 +183,6 @@ namespace WpfCommApp
         private void ReadBuffer(bool cmd = false)
         {
             Thread.Sleep(1000);
-            //byte[] buf2 = new byte[sp.BytesToRead];
-            //sp.Read(buf2, 0, sp.BytesToRead);
-            //serialBuffer = Encoding.UTF8.GetString(buf2, 0, buf2.Length).Trim();
             serialBuffer = _serial.ReadExisting();
             int counter = 0;
             while (cmd && !endPrompt.IsMatch(serialBuffer) && counter++ < 10)

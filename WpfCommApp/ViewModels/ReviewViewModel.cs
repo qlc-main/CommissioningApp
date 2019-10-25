@@ -139,8 +139,6 @@ namespace WpfCommApp
 
             while (true)
             {
-                System.Threading.Thread.Sleep(2500);
-
                 bool stop = true;
                 foreach (Channel c in Channels)
                     if (((c.Phase1 == true || c.Phase2 == true) && (
@@ -156,6 +154,8 @@ namespace WpfCommApp
                 _meter.Commissioned = stop;
                 if (_break)
                     break;
+
+                System.Threading.Thread.Sleep(2500);
             }
 
             _break = false;

@@ -62,5 +62,10 @@ namespace WpfCommApp
             if ((e.Item as Meter).Viewing == false)
                 e.Accepted = false;
         }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            ((e.Source as MainWindow).DataContext as MainViewModel).ImportMeters.Execute(null);
+        }
     }
 }

@@ -113,11 +113,14 @@ namespace WpfCommApp
                     _phase1 = value;
                     if (value == null)
                     {
-                        _forced[0] = true;
+                        _forced[0] = false;
                         Reason = new string[] { "NC", _reason[1] };
                     }
-                    else
+                    else if (value == false)
+                    {
+                        _forced[0] = true;
                         Reason = new string[] { string.Empty, _reason[1] };
+                    }
 
                     OnPropertyChanged(nameof(Phase1));
                 }
@@ -134,11 +137,14 @@ namespace WpfCommApp
                     _phase2 = value;
                     if (value == null)
                     {
-                        _forced[1] = true;
+                        _forced[1] = false;
                         Reason = new string[] { _reason[0], "NC" };
                     }
-                    else
+                    else if (value == false)
+                    {
+                        _forced[1] = true;
                         Reason = new string[] { _reason[0], string.Empty };
+                    }
 
                     OnPropertyChanged(nameof(Phase2));
                 }
@@ -236,7 +242,7 @@ namespace WpfCommApp
             _id = id;
             _primary = "100";
             _secondary = "0.1";
-            _forced = new bool[2] { true, true };
+            _forced = new bool[2] { false, false };
             _phase1 = null;
             _phase2 = null;
             _apartmentNumber = string.Empty;
@@ -252,15 +258,8 @@ namespace WpfCommApp
 
         public void Save (StreamWriter sw)
         {
-            if (Phase1 == true)
-                sw.WriteLine(string.Format("{0},{1},{2},{3},{4}/{5},{6},{7}", ID * 2 - 1, Serial, ApartmentNumber, BreakerNumber, Primary, Secondary, int.Parse(Primary) / 100, Reason[0] + " - " + Notes));
-            else
-                sw.WriteLine(string.Format("{0},{1},Not Commissioned,Not Commissioned,Not Commissioned,Not Commissioned,Not Commissioned", ID * 2 - 1, Serial));
-
-            if (Phase2 == true)
-                sw.WriteLine(string.Format("{0},{1},{2},{3},{4}/{5},{6},{7}", ID * 2, Serial, ApartmentNumber, BreakerNumber, Primary, Secondary, int.Parse(Primary) / 100, Reason[1] + " - " + Notes));
-            else
-                sw.WriteLine(string.Format("{0},{1},Not Commissioned,Not Commissioned,Not Commissioned,Not Commissioned,Not Commissioned", ID * 2, Serial));
+            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}", ID * 2 - 1, Serial, ApartmentNumber, BreakerNumber, CTType, Primary, Secondary, Primary == "" ? "" : (int.Parse(Primary) / 100).ToString(), Phase1, Forced[0], Reason[0], Notes));
+            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}", ID * 2, Serial, ApartmentNumber, BreakerNumber, CTType, Primary, Secondary, Primary == "" ? "" : (int.Parse(Primary) / 100).ToString(), Phase2, Forced[1], Reason[1], Notes));
         }
 
         #endregion

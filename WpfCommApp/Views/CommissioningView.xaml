@@ -10,7 +10,6 @@
 
     <UserControl.Resources>
         <local:StringArrayToStringConverter x:Key="StringArrayToStringConverter" />
-        <local:DefaultConvert x:Key="DefaultConvert" />
         <local:BindingProxy x:Key="proxy" Data="{Binding }" />
 
     </UserControl.Resources>
@@ -27,7 +26,8 @@
                 <DataGridTextColumn Header="Serial #" Binding="{Binding Serial, Mode=OneWay}" 
                                         ElementStyle="{StaticResource center}" HeaderStyle="{StaticResource centerHeader}" />
                 
-                <DataGridTemplateColumn Header="Phase 1 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180">
+                <DataGridTemplateColumn Header="Phase 1 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180"
+                                        CellStyle="{StaticResource DisableCell}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
@@ -77,7 +77,8 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn Header="Phase 2 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180">
+                <DataGridTemplateColumn Header="Phase 2 (A, kW, PF, phase)" HeaderStyle="{StaticResource centerHeader}" MinWidth="180"
+                                        CellStyle="{StaticResource DisableCell}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
@@ -128,10 +129,10 @@
                 </DataGridTemplateColumn>
 
                 <DataGridTextColumn Header="Breaker" MinWidth="50" Binding="{Binding BreakerNumber}" ElementStyle="{StaticResource center}"
-                                    HeaderStyle="{StaticResource centerHeader}" />
+                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableCell}" />
                 
                 <DataGridTextColumn Header="Apartment" MinWidth="50" Binding="{Binding ApartmentNumber}" ElementStyle="{StaticResource center}" 
-                                    HeaderStyle="{StaticResource centerHeader}" />
+                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableCell}" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

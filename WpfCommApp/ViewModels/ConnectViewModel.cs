@@ -173,11 +173,11 @@ namespace WpfCommApp
                 IsBusy = true;
                 ObservableCollection<SerialComm> comms = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>);
                 ObservableCollection<Meter> meters = (Application.Current.Properties["meters"] as ObservableCollection<Meter>);
+                ObservableCollection<Meter> imported = (Application.Current.Properties["importedMeters"] as ObservableCollection<Meter>);
                 _serial = comms.Last();
                 _comPort = "COM3";      // delete, used for testing
                 if (_serial.IsOpen)
                 {
-                    meters.Add(new Meter());
                     comms.Add(new SerialComm());
                     _serial = comms.Last();
                     _comPort = "COM4";      // delete, used for testing
@@ -196,7 +196,16 @@ namespace WpfCommApp
                 if (query.Count() != 0)
                     ComPorts[query.ElementAt(0)].Used = true;
 
-                meters[IDX].ID = id;
+                // Creates new meter if imported meter serial nums do not match, current meter
+                // or sets the imported meter to last index
+                var imports = imported.Where(x => x.ID == id);
+                if (imports.Count() == 0)
+                {
+                    meters.Add(new Meter());
+                    meters[IDX].ID = id;
+                }
+                else
+                    meters.Add(imports.ElementAt(0));
 
                 // Sets the size of the meter based on the type of meter connected
                 string version = _serial.GetVersion();

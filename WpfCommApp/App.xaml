@@ -5,6 +5,7 @@
              StartupUri="Views/MainWindow.xaml">
     <Application.Resources>
         <local:DefaultConvert x:Key="DefaultConvert" />
+        <local:NC x:Key="Disable" />
         
         <!-- Led Control styling -->
         <Style TargetType="local:LedControl">
@@ -90,6 +91,21 @@
         <!-- Centers content for columns in header row -->
         <Style TargetType="DataGridColumnHeader" x:Key="centerHeader">
             <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+
+        <!-- Disables edit of cell contents -->
+        <Style TargetType="DataGridCell" x:Key="DisableCell">
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Reason[0], Converter={StaticResource Disable}}" Value="True" />
+                        <Condition Binding="{Binding Reason[1], Converter={StaticResource Disable}}" Value="True" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="Background" Value="Gray" />
+                    <Setter Property="UIElement.IsEnabled" Value="False" />
+                </MultiDataTrigger>
+            </Style.Triggers>
         </Style>
         
     </Application.Resources>

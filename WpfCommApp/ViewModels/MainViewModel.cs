@@ -9,7 +9,6 @@ using System.Threading;
 
 namespace WpfCommApp
 {
-    
     public class MainViewModel : ObservableObject
     {
         #region Fields
@@ -18,6 +17,7 @@ namespace WpfCommApp
         private ICommand _backwardPage;
         private ICommand _closeTab;
         private ICommand _openTab;
+        private ICommand _importMeters;
         private IAsyncCommand _saveCommand;
 
         private ObservableCollection<Meter> _meters;
@@ -30,6 +30,7 @@ namespace WpfCommApp
 
         private bool _forwardEnabled;
         private bool _backwardEnabled;
+        private bool _imported;
 
         #endregion
 
@@ -38,7 +39,6 @@ namespace WpfCommApp
         public bool ForwardEnabled
         {
             get { return _forwardEnabled; }
-
             set
             {
                 if (_forwardEnabled != value)
@@ -52,7 +52,6 @@ namespace WpfCommApp
         public bool BackwardEnabled
         {
             get { return _backwardEnabled; }
-
             set
             {
                 if (_backwardEnabled != value)
@@ -188,6 +187,17 @@ namespace WpfCommApp
             }
         }
 
+        public ICommand ImportMeters
+        {
+            get
+            {
+                if (_importMeters == null)
+                    _importMeters = new RelayCommand(p => Import(), p => !_imported);
+
+                return _importMeters;
+            }
+        }
+
         #endregion
 
         #region Constructor
@@ -206,7 +216,6 @@ namespace WpfCommApp
             _menuTabs = new ObservableCollection<ContentTab>();
             TabIndex = 0;
             BackwardEnabled = false;
-            
         }
 
         #endregion
@@ -321,9 +330,7 @@ namespace WpfCommApp
             // Remove the tab and then adjust the TabIndex to shift to other open tabs
             Tabs[idx].Visible = false;
             if (Tabs.Where(x => x.Visible == true).Count() == 0)
-            {
                 Application.Current.Shutdown();
-            }
             else if (TabIndex == idx)
             {
                 TabIndex -= 1;
@@ -360,6 +367,61 @@ namespace WpfCommApp
             string dir = string.Join("//", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
             foreach (Meter m in (System.Windows.Application.Current.Properties["meters"] as ObservableCollection<Meter>))
                 m.Save(dir);
+        }
+
+        private void Import()
+        {
+            string dir = string.Join("//", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
+            StreamReader sr;
+            foreach(string file in Directory.GetFiles(dir))
+            {
+                sr = new StreamReader(file);
+                Meter m = new Meter();
+                Channel c = null;
+                string line;
+                string[] split;
+                int subtract = 0;
+                m.ID = sr.ReadLine().Split(new char[0]).Last();
+                m.Floor = sr.ReadLine().Split(new char[0]).Last();
+                m.Location = sr.ReadLine().Split(new char[0]).Last();
+                m.PLCVerified = sr.ReadLine().Split(new char[0]).Last() == "Yes";
+                sr.ReadLine();      // skip the extra new line
+                sr.ReadLine();      // skip the header line for the Channels
+
+                while ((line = sr.ReadLine()) != null)
+                {
+                    split = line.Split(new char[] { ',' });
+                    if (int.Parse(split[0]) % 2 == 1)
+                    {
+                        c = new Channel(int.Parse(split[0]) - subtract);
+                        m.Channels.Add(c);
+                        c.Serial = split[1];
+                        c.ApartmentNumber = split[2];
+                        c.BreakerNumber = split[3];
+                        c.CTType = split[4];
+                        c.Primary = split[5];
+                        c.Secondary = split[6];
+                        if (string.IsNullOrEmpty(split[8])) { c.Phase1 = null; }
+                        else { c.Phase1 = bool.Parse(split[8]); }
+                        c.Forced[0] = bool.Parse(split[9]);
+                        c.Reason[0] = split[10];
+                        c.Notes = split[11];
+                    }
+                    else
+                    {
+                        if (string.IsNullOrEmpty(split[8])) { c.Phase2 = null; }
+                        else { c.Phase2 = bool.Parse(split[8]); }
+                        c.Forced[1] = bool.Parse(split[9]);
+                        c.Reason[1] = split[10];
+                        subtract++;
+                    }
+                }
+
+                m.Size = m.Channels.Count;
+                (Application.Current.Properties["importedMeters"] as ObservableCollection<Meter>).Add(m);
+            }
+
+            _imported = true;
         }
 
         #endregion

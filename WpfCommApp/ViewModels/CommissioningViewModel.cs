@@ -272,7 +272,7 @@ namespace WpfCommApp
                         _diff[0][i]["same"]++;
 
                     // if the same for 3 times clear diff reg
-                    if (_diff[0][i]["same"] == 3)
+                    if (_diff[0][i]["same"] == 5)
                     {
                         _diff[0][i]["diff"] = 0;
                         _diff[0][i]["same"] = 0;
@@ -298,7 +298,7 @@ namespace WpfCommApp
                     else
                         _diff[1][i]["same"]++;
 
-                    if (_diff[1][i]["same"] == 3)
+                    if (_diff[1][i]["same"] == 5)
                     {
                         _diff[1][i]["diff"] = 0;
                         _diff[1][i]["same"] = 0;

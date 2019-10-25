@@ -10,25 +10,30 @@
     <UserControl.Resources>
         <local:BindingProxy x:Key="proxy" Data="{Binding }" />
         <local:ColumnCollapse x:Key="ColumnCollapse" />
-        <local:Disable x:Key="Disable" />
 
         <sys:Int32 x:Key="IntZero">0</sys:Int32>
         <sys:Int32 x:Key="IntOne">1</sys:Int32>
 
-        <Style TargetType="DataGridCell" x:Key="DisableCell">
+        <Style TargetType="DataGridCell" x:Key="DisablePhase1Cell" BasedOn="{StaticResource DisableCell}">
             <Style.Triggers>
-                <MultiDataTrigger>
-                    <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding Reason[0], Converter={StaticResource Disable}}" Value="True" />
-                        <Condition Binding="{Binding Reason[1], Converter={StaticResource Disable}}" Value="True" />
-                    </MultiDataTrigger.Conditions>
+                <DataTrigger Binding="{Binding Reason[0], Converter={StaticResource Disable}}" Value="True">
                     <Setter Property="Foreground" Value="White" />
                     <Setter Property="Background" Value="Gray" />
                     <Setter Property="UIElement.IsEnabled" Value="False" />
-                </MultiDataTrigger>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
-        
+
+        <Style TargetType="DataGridCell" x:Key="DisablePhase2Cell" BasedOn="{StaticResource DisableCell}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Reason[1], Converter={StaticResource Disable}}" Value="True">
+                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="Background" Value="Gray" />
+                    <Setter Property="UIElement.IsEnabled" Value="False" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
     </UserControl.Resources>
 
     <Grid>
@@ -76,20 +81,24 @@
                     </DataGridTextColumn.Header>
                 </DataGridTextColumn>
 
-                <DataGridTemplateColumn Header="Phase 1" HeaderStyle="{StaticResource centerHeader}" MinWidth="50" CellStyle="{StaticResource DisableCell}">
+                <DataGridTemplateColumn Header="Phase 1" HeaderStyle="{StaticResource centerHeader}" MinWidth="50" 
+                                        CellStyle="{StaticResource DisablePhase1Cell}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Gray" HorizontalAlignment="Center"
-                                            IsChecked="{Binding Phase1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Yellow" 
+                                              HorizontalAlignment="Center" 
+                                              IsChecked="{Binding Phase1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn Header="Phase 2" HeaderStyle="{StaticResource centerHeader}" MinWidth="50" CellStyle="{StaticResource DisableCell}">
+                <DataGridTemplateColumn Header="Phase 2" HeaderStyle="{StaticResource centerHeader}" MinWidth="50" 
+                                        CellStyle="{StaticResource DisablePhase2Cell}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Gray" HorizontalAlignment="Center"
-                                            IsChecked="{Binding Phase2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Yellow" 
+                                              HorizontalAlignment="Center"
+                                              IsChecked="{Binding Phase2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

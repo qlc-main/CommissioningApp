@@ -34,7 +34,7 @@ namespace WpfCommApp
         }
     }
 
-    public class Disable : IValueConverter
+    public class NC : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {

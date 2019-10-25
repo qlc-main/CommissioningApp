@@ -48,10 +48,7 @@ namespace WpfCommApp
 
         public bool Completed
         {
-            get
-            {
-                return _completed;
-            }
+            get { return _completed; }
         }
 
         public ObservableCollection<Channel> Channels
@@ -61,17 +58,21 @@ namespace WpfCommApp
                 if (_meter == null)
                 {
                     Meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
-                    var serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>)[IDX];
-                    string[] serials = serial.GetChildSerial().Split(',');
-                    // this code will move when i make the number of channels dependent on user input
-                    for (int i = 0; i < _meter.Size; i++)
-                    {
-                        _meter.Channels.Add(new Channel(i + 1));
-                        //_meter.Channels[i].Serial = serials[i];
-                        _meter.Channels[i].Serial = i < serials.Length ? serials[i] : "";       // delete later, used for debugging purposes
-                    }
 
-                    // to here 
+                    if (Meter.Channels.Count == 0)
+                    {
+                        var serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>)[IDX];
+                        string[] serials = serial.GetChildSerial().Split(',');
+                        // this code will move when i make the number of channels dependent on user input
+                        for (int i = 0; i < _meter.Size; i++)
+                        {
+                            _meter.Channels.Add(new Channel(i + 1));
+                            //_meter.Channels[i].Serial = serials[i];
+                            _meter.Channels[i].Serial = i < serials.Length ? serials[i] : "";       // delete later, used for debugging purposes
+                        }
+
+                        // to here 
+                    }
                 }
 
                 return _meter.Channels;

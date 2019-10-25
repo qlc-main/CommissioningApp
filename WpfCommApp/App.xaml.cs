@@ -24,7 +24,8 @@ namespace WpfCommApp
             Current.Properties["MessageBus"] =
                     new MessageBus(uiThreadMarshaller);
             Current.Properties["serial"] = new ObservableCollection<SerialComm>() { new SerialComm() };
-            Current.Properties["meters"] = new ObservableCollection<Meter>() { new Meter() };
+            Current.Properties["meters"] = new ObservableCollection<Meter>();
+            Current.Properties["importedMeters"] = new ObservableCollection<Meter>();
         }
     }
 
@@ -47,6 +48,5 @@ namespace WpfCommApp
             DependencyProperty.Register("Data", typeof(object),
             typeof(BindingProxy), new UIPropertyMetadata(null));
     }
-
     
 }

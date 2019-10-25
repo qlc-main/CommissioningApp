@@ -6,7 +6,7 @@
         xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
         xmlns:local="clr-namespace:WpfCommApp"
         mc:Ignorable="d"
-        Title="QuadLogic Controls Corp." MinHeight="500" MinWidth="800">
+        Title="QuadLogic Controls Corp." MinHeight="500" MinWidth="800" Loaded="Window_Loaded">
 
     <Window.Resources>
         <local:BindingProxy x:Key="Context" Data="{Binding }" />

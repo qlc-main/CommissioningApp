@@ -148,8 +148,8 @@ namespace WpfCommApp
         public void Save(string dir)
         {
             StreamWriter sw = new StreamWriter(string.Format("{0}//{1}.txt", dir, _id));
-            sw.WriteLine(string.Format("S/N: {0}\nFloor: {1}\nLocation: {2}\nPLC Verified: {3}", _id, _floor, _location, _plcVerified ? "Yes" : "No"));
-            sw.WriteLine("CT,Serial,Apartment Number,C/B#,CT Ratio,Multiplier,Notes");
+            sw.WriteLine(string.Format("S/N: {0}\nFloor: {1}\nLocation: {2}\nPLC Verified: {3}\n", _id, _floor, _location, _plcVerified ? "Yes" : "No"));
+            sw.WriteLine("CT,Serial,Apartment,C/B#,CT Type,Primary,Secondary,Multiplier,Commissioned,Forced,Reason,Notes");
             foreach (Channel c in Channels)
                 c.Save(sw);
             sw.Close();

@@ -32,6 +32,8 @@
                     <Menu IsMainMenu="True" Background="White" Height="38.5" VerticalAlignment="Center" HorizontalAlignment="Left">
                         <MenuItem Header="_File">
                             <MenuItem Header="Save" Command="{Binding Data.SaveCommand, Source={StaticResource Context}}" />
+                            <MenuItem Header="Import Meter" Command="{Binding Data.ImportCommand, Source={StaticResource Context}}" />
+                            <MenuItem Header="Upload to CRM" Command="{Binding Data.UploadCommand, Source={StaticResource Context}}" />
                         </MenuItem>
                         <MenuItem Header="_Open">
                             <MenuItem Header="Meter Tab">

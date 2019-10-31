@@ -6,6 +6,8 @@ using System.Windows.Input;
 using System.Threading.Tasks;
 using System.IO;
 using System.Threading;
+using Microsoft.Win32;
+using System;
 
 namespace WpfCommApp
 {
@@ -17,8 +19,10 @@ namespace WpfCommApp
         private ICommand _backwardPage;
         private ICommand _closeTab;
         private ICommand _openTab;
+        private ICommand _importCommand;
         private ICommand _importMeters;
         private IAsyncCommand _saveCommand;
+        private ICommand _uploadCommand;
 
         private ObservableCollection<Meter> _meters;
         private ObservableCollection<SerialComm> _serial;
@@ -187,6 +191,28 @@ namespace WpfCommApp
             }
         }
 
+        public ICommand ImportCommand
+        {
+            get
+            {
+                if (_importCommand == null)
+                    _importCommand = new RelayCommand(p => ImportLocation());
+
+                return _importCommand;
+            }
+        }
+
+        public ICommand UploadCommand
+        {
+            get
+            {
+                if (_uploadCommand == null)
+                    _uploadCommand = new RelayCommand(p => StartCRM());
+
+                return _uploadCommand;
+            }
+        }
+
         public ICommand ImportMeters
         {
             get
@@ -337,7 +363,7 @@ namespace WpfCommApp
                 if (p.Contains("(") && p.Contains(")"))
                 {
                     var meters = (Application.Current.Properties["meters"] as ObservableCollection<Meter>);
-                    meters[idx - 1].Save(string.Join("//", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
+                    meters[idx - 1].Save(string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
                 }
             }
             else
@@ -364,64 +390,101 @@ namespace WpfCommApp
 
         private async Task SaveMeters()
         {
-            string dir = string.Join("//", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
+            string dir = string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
             foreach (Meter m in (System.Windows.Application.Current.Properties["meters"] as ObservableCollection<Meter>))
                 m.Save(dir);
         }
 
         private void Import()
         {
-            string dir = string.Join("//", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
-            StreamReader sr;
+            string dir = string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
             foreach(string file in Directory.GetFiles(dir))
-            {
-                sr = new StreamReader(file);
-                Meter m = new Meter();
-                Channel c = null;
-                string line;
-                string[] split;
-                int subtract = 0;
-                m.ID = sr.ReadLine().Split(new char[0]).Last();
-                m.Floor = sr.ReadLine().Split(new char[0]).Last();
-                m.Location = sr.ReadLine().Split(new char[0]).Last();
-                m.PLCVerified = sr.ReadLine().Split(new char[0]).Last() == "Yes";
-                sr.ReadLine();      // skip the extra new line
-                sr.ReadLine();      // skip the header line for the Channels
-
-                while ((line = sr.ReadLine()) != null)
-                {
-                    split = line.Split(new char[] { ',' });
-                    if (int.Parse(split[0]) % 2 == 1)
-                    {
-                        c = new Channel(int.Parse(split[0]) - subtract);
-                        m.Channels.Add(c);
-                        c.Serial = split[1];
-                        c.ApartmentNumber = split[2];
-                        c.BreakerNumber = split[3];
-                        c.CTType = split[4];
-                        c.Primary = split[5];
-                        c.Secondary = split[6];
-                        if (string.IsNullOrEmpty(split[8])) { c.Phase1 = null; }
-                        else { c.Phase1 = bool.Parse(split[8]); }
-                        c.Forced[0] = bool.Parse(split[9]);
-                        c.Reason[0] = split[10];
-                        c.Notes = split[11];
-                    }
-                    else
-                    {
-                        if (string.IsNullOrEmpty(split[8])) { c.Phase2 = null; }
-                        else { c.Phase2 = bool.Parse(split[8]); }
-                        c.Forced[1] = bool.Parse(split[9]);
-                        c.Reason[1] = split[10];
-                        subtract++;
-                    }
-                }
-
-                m.Size = m.Channels.Count;
-                (Application.Current.Properties["importedMeters"] as ObservableCollection<Meter>).Add(m);
-            }
+                ImportMeter(file);
 
             _imported = true;
+        }
+
+        private void ImportLocation()
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Multiselect = true;
+            ofd.Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*";
+            ofd.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Recent);
+            var result = ofd.ShowDialog();
+            if (result == true)
+                foreach (string fileName in ofd.FileNames)
+                    ImportMeter(fileName);
+        }
+
+        private void ImportMeter(string fileName)
+        {
+            StreamReader sr = new StreamReader(fileName);
+            Meter m = new Meter();
+            Channel c = null;
+            string line;
+            string[] split;
+            int subtract = 0;
+            sr.ReadLine();          // skip meter header row
+            line = sr.ReadLine();   // meter properties
+            sr.ReadLine();          // skip the header line for the Channels
+
+            // Set Meter Properties
+            split = line.Split(new char[1] { ',' });
+            m.ID = split[0];
+            m.Floor = split[1];
+            m.Location = split[2];
+            m.PLCVerified = split[3] == "Yes" ? true : false;
+            m.Disposition = int.Parse(split[4]);
+            m.FSReturn = split[5] == "1" ? true : false;
+            m.OprComplete = split[6] == "1" ? true : false;
+
+            while ((line = sr.ReadLine()) != null)
+            {
+                split = line.Split(new char[] { ',' });
+                if (int.Parse(split[0]) % 2 == 1)
+                {
+                    c = new Channel(int.Parse(split[0]) - subtract);
+                    m.Channels.Add(c);
+                    c.Serial = split[1];
+                    c.ApartmentNumber = split[2];
+                    c.BreakerNumber = split[3];
+                    c.CTType = split[4];
+                    c.Primary = split[5];
+                    c.Secondary = split[6];
+                    if (string.IsNullOrEmpty(split[8])) { c.Phase1 = null; }
+                    else { c.Phase1 = bool.Parse(split[8]); }
+                    c.Forced[0] = bool.Parse(split[9]);
+                    c.Reason[0] = split[10];
+                    c.Notes = split[11];
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(split[8])) { c.Phase2 = null; }
+                    else { c.Phase2 = bool.Parse(split[8]); }
+                    c.Forced[1] = bool.Parse(split[9]);
+                    c.Reason[1] = split[10];
+                    subtract++;
+                }
+            }
+
+            m.Size = m.Channels.Count;
+
+            // only add this meter if it doesn't exist in imported meters
+            if (!(Application.Current.Properties["importedMeters"] as ObservableCollection<Meter>).Any(meter => meter.ID == m.ID))
+                (Application.Current.Properties["importedMeters"] as ObservableCollection<Meter>).Add(m);
+        }
+
+        private void StartCRM()
+        {
+            if (TabIndex == 0 && CurrentTab.Name == "Serial Connection")
+            {
+                var pages = CurrentTab.Pages;
+                var current = CurrentTab.CurrentPage;
+                var idx = pages.IndexOf(current);
+
+                CurrentTab.CurrentPage = pages[idx + 1];
+                BackwardEnabled = true;
+            }
         }
 
         #endregion

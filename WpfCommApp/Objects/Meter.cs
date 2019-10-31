@@ -13,10 +13,14 @@ namespace WpfCommApp
         #region Fields
 
         private bool _commissioned;
+        private int _disposition;
         private string _floor;
+        private bool _fsReturn;
         private string _id;
         private string _location;
         private string _notes;
+        private bool _oprComplete;
+        private string _plcReason;
         private bool _plcVerified;
         private int _size;
         private bool? _viewing;
@@ -47,6 +51,19 @@ namespace WpfCommApp
             }
         }
 
+        public int Disposition
+        {
+            get { return _disposition; }
+            set
+            {
+                if (_disposition != value)
+                {
+                    _disposition = value;
+                    OnPropertyChanged(nameof(Disposition));
+                }
+            }
+        }
+
         public string Floor
         {
             get { return _floor; }
@@ -56,6 +73,19 @@ namespace WpfCommApp
                 {
                     _floor = value;
                     OnPropertyChanged(nameof(Floor));
+                }
+            }
+        }
+
+        public bool FSReturn
+        {
+            get { return _fsReturn; }
+            set
+            {
+                if (_fsReturn != value)
+                {
+                    _fsReturn = value;
+                    OnPropertyChanged(nameof(FSReturn));
                 }
             }
         }
@@ -99,6 +129,32 @@ namespace WpfCommApp
             }
         }
 
+        public bool OprComplete
+        {
+            get { return _oprComplete; }
+            set
+            {
+                if (_oprComplete != value)
+                {
+                    _oprComplete = value;
+                    OnPropertyChanged(nameof(OprComplete));
+                }
+            }
+        }
+
+        public string PLCReason
+        {
+            get { return _plcReason; }
+            set
+            {
+                if (_plcReason != value)
+                {
+                    _plcReason = value;
+                    OnPropertyChanged(nameof(PLCReason));
+                }
+            }
+        }
+
         public bool PLCVerified
         {
             get { return _plcVerified; }
@@ -137,6 +193,7 @@ namespace WpfCommApp
 
         public Meter()
         {
+            _disposition = -1;
             _notes = "";
             Channels = new ObservableCollection<Channel>();
         }
@@ -148,7 +205,8 @@ namespace WpfCommApp
         public void Save(string dir)
         {
             StreamWriter sw = new StreamWriter(string.Format("{0}//{1}.txt", dir, _id));
-            sw.WriteLine(string.Format("S/N: {0}\nFloor: {1}\nLocation: {2}\nPLC Verified: {3}\n", _id, _floor, _location, _plcVerified ? "Yes" : "No"));
+            sw.WriteLine("S/N,Floor,Location,PLC Verified,Disposition,FS Return,Opr Complete");
+            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6}", _id, _floor, _location, _plcVerified ? "Yes" : "No", _disposition, _fsReturn ? "1" : "0", _oprComplete ? "1" : "0"));
             sw.WriteLine("CT,Serial,Apartment,C/B#,CT Type,Primary,Secondary,Multiplier,Commissioned,Forced,Reason,Notes");
             foreach (Channel c in Channels)
                 c.Save(sw);

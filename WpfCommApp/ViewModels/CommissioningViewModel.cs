@@ -17,10 +17,12 @@ namespace WpfCommApp
         #region Fields
 
         private bool _break;
+        private Dictionary<string, int> _comboBoxItems;
+        private bool _channelComm;
         private bool _completed;
 
         private Dictionary<string, int>[][] _diff;
-
+        private string _disconnectText;
         private int _idx;
 
         private Meter _meter;
@@ -55,6 +57,11 @@ namespace WpfCommApp
             }
         }
 
+        public Dictionary<string, int> ComboBoxItems
+        {
+            get { return _comboBoxItems; }
+        }
+
         public bool Completed
         {
             get { return _completed; }
@@ -79,10 +86,30 @@ namespace WpfCommApp
             }
         }
 
+        public string DisconnectText
+        {
+            get { return _disconnectText; }
+            set
+            {
+                _disconnectText = value;
+                OnPropertyChanged(nameof(DisconnectText));
+            }
+        }
+
         public int IDX
         {
             get { return _idx; }
             set { if (_idx != value) _idx = value; }
+        }
+
+        public Meter Meter
+        {
+            get { return _meter; }
+            set
+            {
+                _meter = value;
+                OnPropertyChanged(nameof(Meter));
+            }
         }
 
         public string Name { get { return "Commissioning"; } }
@@ -133,6 +160,15 @@ namespace WpfCommApp
             _phaseBText = new string[4][];
             _diff = new Dictionary<string, int>[2][];
             _idx = idx;
+
+            _comboBoxItems = new Dictionary<string, int>() {
+                                { "No Problem Found", 10},
+                                { "Wrong Site Wiring", 12},
+                                { "Follow Up Required", 75},
+                                { "Follow Up Resolved", 113},
+                                { "No Meter Communication", 41},
+                                { "Reversed CT(s)", 78},
+                                { "Reversed Phase(s)", 79} };
         }
 
         #endregion
@@ -215,7 +251,41 @@ namespace WpfCommApp
 
         private void Process()
         {
-            string buffer = _serial.PD();
+            var tokenSource = new CancellationTokenSource();
+            CancellationToken token = tokenSource.Token;
+            var task = Task.Factory.StartNew(() => _serial.PD(), token);
+
+            if (!task.Wait(5000, token))
+            {
+                // display modal to user about disconnect
+                Thread t = new Thread(new ThreadStart(() => 
+                //Application.Current.Dispatcher.Invoke(() =>
+                {
+                    SerialDisconnect sd = new SerialDisconnect();
+                    //sd.Owner = Application.Current.MainWindow;        // Exception for accessing MainWindow because it doesnt belong to this thread
+                    sd.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                    sd.DataContext = this;
+                    _disconnectText = "Attempting to Reconnect";
+                    sd.Show();
+
+                    int i = 0;
+                    do
+                    {
+                        DisconnectText = "Attempting to Reconnect" + new String('.', i++ % 4);
+                        Thread.Sleep(2500);
+                    } while (!task.Wait(1000, token));
+
+                    sd.Close();
+                }));
+                //});
+
+                t.SetApartmentState(ApartmentState.STA);
+                t.IsBackground = true;
+                t.Start();
+                t.Join();
+            }
+
+            string buffer = task.Result;
             foreach (string s in buffer.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries))
             {
                 string[] cols = s.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
@@ -248,9 +318,6 @@ namespace WpfCommApp
                     else
                         _phaseBText[2][meter] = temp.ToString("0.00");
                 }
-
-                if (_break)
-                    return;
             }
 
             OnPropertyChanged(nameof(PhaseAText));
@@ -259,31 +326,35 @@ namespace WpfCommApp
 
         private void Detection()
         {
+            float oldP, newP;
             for (int i = 0; i < PhaseAText[0].Length; i++)
             {
                 // check if the values differ
-                float oldP, newP;
                 if (float.TryParse(_oldPhaseAText[i], out oldP)) {
                     newP = float.Parse(PhaseAText[0][i]);
-                    if (Math.Abs(oldP - newP) / ((oldP + newP) / 2) > 1) {
+                    if (Math.Abs(oldP - newP) / ((oldP + newP) / 2) > 1)
+                    {
                         _diff[0][i]["diff"]++;
                         _diff[0][i]["same"] = 0;
-                    } else
+
+                        // if diff reg counts to 3 change phase and then clear reg
+                        if (_diff[0][i]["diff"] == 3 && Channels[i].Phase1 == null)
+                        {
+                            Channels[i].Phase1 = false;
+                            Channels[i].Forced[0] = false;
+                            _diff[0][i]["diff"] = 0;
+                        }
+                    }
+                    else
+                    {
                         _diff[0][i]["same"]++;
 
-                    // if the same for 3 times clear diff reg
-                    if (_diff[0][i]["same"] == 5)
-                    {
-                        _diff[0][i]["diff"] = 0;
-                        _diff[0][i]["same"] = 0;
-                    }
-
-                    // if diff reg counts to 3 change phase and then clear reg
-                    if (_diff[0][i]["diff"] == 3 && Channels[i].Phase1 == null)
-                    {
-                        Channels[i].Phase1 = false;
-                        Channels[i].Forced[0] = false;
-                        _diff[0][i]["diff"] = 0;
+                        // if the same for 3 times clear diff reg
+                        if (_diff[0][i]["same"] == 5)
+                        {
+                            _diff[0][i]["diff"] = 0;
+                            _diff[0][i]["same"] = 0;
+                        }
                     }
                 }
 
@@ -294,27 +365,27 @@ namespace WpfCommApp
                     {
                         _diff[1][i]["diff"]++;
                         _diff[1][i]["same"] = 0;
+
+                        // if diff reg counts to 3 change phase and then clear reg
+                        if (_diff[1][i]["diff"] == 3 && Channels[i].Phase2 == null)
+                        {
+                            Channels[i].Phase2 = false;
+                            Channels[i].Forced[1] = false;
+                            _diff[1][i]["diff"] = 0;
+                        }
                     }
                     else
+                    {
                         _diff[1][i]["same"]++;
 
-                    if (_diff[1][i]["same"] == 5)
-                    {
-                        _diff[1][i]["diff"] = 0;
-                        _diff[1][i]["same"] = 0;
-                    }
-
-                    // if diff reg counts to 3 change phase and then clear reg
-                    if (_diff[1][i]["diff"] == 3 && Channels[i].Phase2 == null)
-                    {
-                        Channels[i].Phase2 = false;
-                        Channels[i].Forced[1] = false;
-                        _diff[1][i]["diff"] = 0;
+                        if (_diff[1][i]["same"] == 5)
+                        {
+                            _diff[1][i]["diff"] = 0;
+                            _diff[1][i]["same"] = 0;
+                        }
                     }
                 }
 
-                if (_break)
-                    return;
                 //ThreadPool.QueueUserWorkItem(new WaitCallback(Compare), new object[] { _oldPhaseAText[0], _phaseAText[0], i, 'a' });
                 //ThreadPool.QueueUserWorkItem(new WaitCallback(Compare), new object[] { _oldPhaseBText[0], _phaseBText[0], i, 'b' });
             }
@@ -325,15 +396,21 @@ namespace WpfCommApp
 
         private void Scan()
         {
+            // Check if at least one phase of a channel has been commissioned
+            _channelComm = false;
             foreach (Channel c in Channels)
             {
                 if (c.Phase1 == true || c.Phase2 == true) {
-                    Completed = true;
-                    return;
+                    _channelComm = true;
+                    break;
                 }
+            }
 
-                if (_break)
-                    return;
+            // if at least one phase and the meter details have been entered mark as complete
+            if (_channelComm && (Meter.Disposition > 0 && !string.IsNullOrEmpty(Meter.Floor) && !string.IsNullOrEmpty(Meter.Location)))
+            {
+                Completed = true;
+                return;
             }
 
             Completed = false;

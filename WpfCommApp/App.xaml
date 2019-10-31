@@ -6,7 +6,7 @@
     <Application.Resources>
         <local:DefaultConvert x:Key="DefaultConvert" />
         <local:NC x:Key="Disable" />
-        
+
         <!-- Led Control styling -->
         <Style TargetType="local:LedControl">
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -98,8 +98,9 @@
             <Style.Triggers>
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding Reason[0], Converter={StaticResource Disable}}" Value="True" />
-                        <Condition Binding="{Binding Reason[1], Converter={StaticResource Disable}}" Value="True" />
+                        <Condition Binding="{Binding Primary}" Value="" />
+                        <Condition Binding="{Binding Secondary}" Value="" />
+                        <Condition Binding="{Binding CTType}" Value="" />
                     </MultiDataTrigger.Conditions>
                     <Setter Property="Foreground" Value="White" />
                     <Setter Property="Background" Value="Gray" />

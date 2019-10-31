@@ -10,17 +10,16 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
 
 namespace WpfCommApp
 {
     /// <summary>
-    /// Interaction logic for ReviewView.xaml
+    /// Interaction logic for SerialDisconnect.xaml
     /// </summary>
-    public partial class ReviewView : UserControl
+    public partial class SerialDisconnect : Window
     {
-        public ReviewView()
+        public SerialDisconnect()
         {
             InitializeComponent();
         }

@@ -1,4 +1,5 @@
 ﻿using Hellang.MessageBus;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Windows;
@@ -12,12 +13,9 @@ namespace WpfCommApp
         private bool _break;
         private bool _completed;
         private string[] _ctTypes;
+        private Dictionary<int, string> _dispositions;
         private int _idx;
-
         private Meter _meter;
-
-        private ICommand _monitor;
-        private ICommand _stop;
 
         #endregion
 
@@ -69,10 +67,25 @@ namespace WpfCommApp
             get { return _ctTypes; }
         }
 
+        public string Disposition
+        {
+            get { return _dispositions[_meter.Disposition]; }
+        }
+
+        public string FSReturn
+        {
+            get { return _meter.FSReturn ? "No" : "Yes"; }
+        }
+
         public int IDX
         {
             get { return _idx; }
             set { if (_idx != value) _idx = value; }
+        }
+
+        public Meter Meter
+        {
+            get { return _meter; }
         }
 
         public string Name { get { return "Review"; } }
@@ -87,28 +100,15 @@ namespace WpfCommApp
             }
         }
 
-        public ICommand Monitor
+        public string OprComplete
         {
-            get
-            {
-                if (_monitor == null)
-                    _monitor = new RelayCommand(p => LaunchWatcher());
-
-                return _monitor;
-            }
+            get { return _meter.OprComplete ? "Yes" : "No"; }
         }
 
-        public ICommand Stop
-        {
-            get
-            {
-                if (_stop == null)
-                    _stop = new RelayCommand(p => Cease());
+        #endregion
 
-                return _stop;
-            }
-        }
-        
+        #region Commands
+
         #endregion
 
         #region Constructors
@@ -116,7 +116,16 @@ namespace WpfCommApp
         public ReviewViewModel(int idx)
         {
             _idx = idx;
+            _completed = true;
             _ctTypes = new string[3] { "flex", "solid", "split" };
+            _dispositions = new Dictionary<int, string>() {
+                                { 10, "No Problem Found"},
+                                { 12, "Wrong Site Wiring"},
+                                { 75, "Follow Up Required"},
+                                { 113, "Follow Up Resolved"},
+                                { 41, "No Meter Communication"},
+                                { 78, "Reversed CT(s)"},
+                                { 79, "Reversed Phase(s)"} };
         }
 
         #endregion
@@ -126,45 +135,6 @@ namespace WpfCommApp
         #endregion
 
         #region Commands
-
-        private void LaunchWatcher()
-        {
-            Task.Run(Watcher);
-        }
-
-        private async Task Watcher()
-        {
-            // loop here until break value is reset before entering loop
-            while (_break) { }
-
-            while (true)
-            {
-                bool stop = true;
-                foreach (Channel c in Channels)
-                    if (((c.Phase1 == true || c.Phase2 == true) && (
-                        string.IsNullOrEmpty(c.ApartmentNumber) ||
-                        string.IsNullOrEmpty(c.BreakerNumber))) ||
-                        (c.Phase1 == true && c.Forced[0] && string.IsNullOrEmpty(c.Reason[0])) ||
-                        (c.Phase2 == true && c.Forced[1] && string.IsNullOrEmpty(c.Reason[1]))) {
-                        stop = false;
-                        break;
-                    }
-
-                Completed = stop;
-                _meter.Commissioned = stop;
-                if (_break)
-                    break;
-
-                System.Threading.Thread.Sleep(2500);
-            }
-
-            _break = false;
-        }
-
-        private void Cease()
-        {
-            _break = true;
-        }
 
         #endregion
     }

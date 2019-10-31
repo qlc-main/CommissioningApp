@@ -67,6 +67,7 @@ namespace WpfCommApp
         #endregion
 
         #region Constructor
+
         public ContentTab(int idx)
         {
             _idx = idx;

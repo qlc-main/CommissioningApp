@@ -32,7 +32,6 @@
         </CollectionViewSource>
 
         <local:BindingProxy x:Key="proxy" Data="{Binding SetPort}" />
-        <local:DefaultConvert x:Key="DefaultConvert" />
     </UserControl.Resources>
 
 

@@ -1,9 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using Hellang.MessageBus;
 using System.Windows.Threading;
@@ -21,14 +17,20 @@ namespace WpfCommApp
             // Initialize MessageBus Using Dispatcher
             Action<Action> uiThreadMarshaller =
                 action => Dispatcher.Invoke(DispatcherPriority.Normal, action);
+
+            // These are the 3 application wide variables, a message bus for sending messages back to the MainWindow
             Current.Properties["MessageBus"] =
                     new MessageBus(uiThreadMarshaller);
+            // Collection of active serial objects
             Current.Properties["serial"] = new ObservableCollection<SerialComm>() { new SerialComm() };
-            Current.Properties["meters"] = new ObservableCollection<Meter>();
-            Current.Properties["importedMeters"] = new ObservableCollection<Meter>();
+            // Collection of meter objects that have been imported or created during program execution
+            Current.Properties["meters"] = new Dictionary<string, Meter>();
         }
     }
 
+    /// <summary>
+    /// This class is used to create bindings to specific elements in the XAML
+    /// </summary>
     public class BindingProxy : Freezable
     {
         protected override Freezable CreateInstanceCore()

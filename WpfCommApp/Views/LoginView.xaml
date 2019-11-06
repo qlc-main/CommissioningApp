@@ -28,8 +28,7 @@
             </TextBlock>
         </Label>
         <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"  Grid.Row="1" Grid.Column="1"
-                    Height="24" Padding="2" Margin="10 0" VerticalContentAlignment="Center" 
-                    IsEnabled="{Binding IsEnabled}" />
+                    Height="24" Padding="2" Margin="10 0" VerticalContentAlignment="Center" />
 
         <Label Margin="3 0" Grid.Row="2" Grid.Column="1">
             <TextBlock>
@@ -38,11 +37,11 @@
             </TextBlock>
         </Label>
         <PasswordBox Grid.Row="3" Grid.Column="1" Height="24" Padding="2" Margin="10 0" Name="usrPassword"
-                        VerticalContentAlignment="Center" IsEnabled="{Binding IsEnabled}" />
+                        VerticalContentAlignment="Center" />
 
         <Label Content="Operation ID" Margin="3 0" Grid.Column="1" Grid.Row="4"/>
-        <TextBox Text="{Binding OperationID, UpdateSourceTrigger=PropertyChanged}"  Grid.Row="5" Grid.Column="1"
-                Height="24" Padding="2" Margin="10 0" VerticalContentAlignment="Center" IsEnabled="{Binding IsEnabled}" />
+        <TextBox Text="{Binding ID, UpdateSourceTrigger=PropertyChanged}"  Grid.Row="5" Grid.Column="1"
+                Height="24" Padding="2" Margin="10 0" VerticalContentAlignment="Center" />
 
         <Button Name="Submit" Margin="0 20 10 20" Width="100" Content="Submit"  Grid.Row="6" Grid.Column="1" HorizontalAlignment="Right"
                     Command="{Binding Login}" CommandParameter="{Binding ElementName=usrPassword}"/>

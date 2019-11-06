@@ -17,11 +17,20 @@ namespace WpfCommApp
     /// <summary>
     /// Interaction logic for SerialDisconnect.xaml
     /// </summary>
-    public partial class SerialDisconnect : Window
+    public partial class SerialDisconnectView : Window
     {
-        public SerialDisconnect()
+        public SerialDisconnectView()
         {
             InitializeComponent();
+        }
+
+        private void CloseCommand(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            var sdvm = (this.DataContext as SerialDisconnectViewModel);
+            if (sdvm.UserClosedWindow)
+            {
+                sdvm.StopPolling();
+            }
         }
     }
 }

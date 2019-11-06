@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
         xmlns:local="clr-namespace:WpfCommApp"
+        xmlns:system="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="QuadLogic Controls Corp." MinHeight="500" MinWidth="800" Loaded="Window_Loaded">
 
@@ -14,10 +15,15 @@
         <!-- Sorts the comport collection so I do not have to in the view model-->
         <CollectionViewSource Source="{Binding Meters}" x:Key="meters" Filter="Meter_Filter">
             <CollectionViewSource.SortDescriptions>
-                <scm:SortDescription PropertyName="ID" />
+                <scm:SortDescription PropertyName="Key" Direction="Ascending" />
             </CollectionViewSource.SortDescriptions>
         </CollectionViewSource>
 
+        <!--
+        <CollectionViewSource Source="{Binding Tabs}" x:Key="ViewTabs" Filter="ViewTabs" />
+        <CollectionViewSource Source="{Binding Tabs}" x:Key="MenuTabs" Filter="MenuTabs" />
+        -->
+        
     </Window.Resources>
 
     <Grid>
@@ -37,7 +43,8 @@
                         </MenuItem>
                         <MenuItem Header="_Open">
                             <MenuItem Header="Meter Tab">
-                                <ItemsControl ItemsSource="{Binding MenuTabs}">
+                                <!-- <ItemsControl x:Name="MeterMenuTabs" ItemsSource="{Binding Source={StaticResource MenuTabs}}"> -->
+                                <ItemsControl x:Name="MeterMenuTabs" ItemsSource="{Binding MenuVisibleTabs}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <MenuItem Header="{Binding MeterSerialNo}" 
@@ -54,7 +61,8 @@
         </StackPanel>
         
         <StackPanel Orientation="Vertical" Grid.Row="1">
-            <TabControl ItemsSource="{Binding ViewTabs}" SelectedIndex="{Binding TabIndex}" >
+            <!-- <TabControl x:Name="MeterViewTabs" ItemsSource="{Binding Source={StaticResource ViewTabs}}" SelectedIndex="{Binding TabIndex}" > -->
+            <TabControl x:Name="MeterViewTabs" ItemsSource="{Binding ViewVisibleTabs}" SelectedIndex="{Binding TabIndex}" >
                 <TabControl.Resources>
                     <DataTemplate DataType="{x:Type local:ContentTab}">
                         <local:ContentTabView />

@@ -1,37 +1,56 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+﻿
 namespace WpfCommApp
 {
+    /// <summary>
+    /// Message passing interface to send messages from IPageViewModels to MainViewModel
+    /// </summary>
     public class ScreenComplete
     {
         #region Fields
-        private string _command;
+
         #endregion
 
         #region Properties
-        public string Command
-        {
-            get
-            {
-                return _command;
-            }
-        }
+
+        public object Args { get; }
+
+        public string Command { get; }
+
         #endregion
 
         #region Constructors
+
+        /// <summary>
+        /// Basic message indicating to move forward to the next page
+        /// </summary>
         public ScreenComplete()
             : this("")
         {
         }
 
+        /// <summary>
+        /// Advanced message that will use the command parameter to
+        /// determine the MainViewMode's action
+        /// </summary>
+        /// <param name="command"></param>
         public ScreenComplete(string command)
         {
-            _command = command;
+            Command = command;
         }
+
+        /// <summary>
+        /// Advanced messaged that will use the command parameter to
+        /// determine the MainViewModel's action as well as use the
+        /// included arguments in the function call
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="args"></param>
+        public ScreenComplete(string command, object args)
+        {
+            Command = command;
+            Args = args;
+        }
+
         #endregion
 
     }

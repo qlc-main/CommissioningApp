@@ -9,7 +9,8 @@ namespace WpfCommApp
     public interface IPageViewModel
     {
         bool Completed { get; }
-        int IDX { get; set; }
+        string ID { get; set; }
         string Name { get; }
+
     }
 }

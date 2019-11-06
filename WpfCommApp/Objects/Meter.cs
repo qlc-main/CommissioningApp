@@ -198,6 +198,14 @@ namespace WpfCommApp
             Channels = new ObservableCollection<Channel>();
         }
 
+        public Meter(string serial)
+        {
+            _disposition = -1;
+            _id = serial;
+            _notes = "";
+            Channels = new ObservableCollection<Channel>();
+        }
+
         #endregion
 
         #region Methods
@@ -205,8 +213,9 @@ namespace WpfCommApp
         public void Save(string dir)
         {
             StreamWriter sw = new StreamWriter(string.Format("{0}//{1}.txt", dir, _id));
-            sw.WriteLine("S/N,Floor,Location,PLC Verified,Disposition,FS Return,Opr Complete");
-            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6}", _id, _floor, _location, _plcVerified ? "Yes" : "No", _disposition, _fsReturn ? "1" : "0", _oprComplete ? "1" : "0"));
+            sw.WriteLine("S/N,Floor,Location,PLC Verified,Disposition,FS Return,Opr Complete,Commissioned");
+            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6},{7}", _id, _floor, _location, _plcVerified ? "Yes" : "No",
+                _disposition, _fsReturn ? "1" : "0", _oprComplete ? "1" : "0", _commissioned ? "1" : "0"));
             sw.WriteLine("CT,Serial,Apartment,C/B#,CT Type,Primary,Secondary,Multiplier,Commissioned,Forced,Reason,Notes");
             foreach (Channel c in Channels)
                 c.Save(sw);

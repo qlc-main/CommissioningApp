@@ -15,21 +15,64 @@ namespace WpfCommApp
     public class ConnectViewModel : ObservableObject, IPageViewModel
     {
         #region Fields
-        private IAsyncCommand _serialConn;
-        private ICommand _portSelect;
-        private IAsyncCommand _closeSerial;
 
-        private SerialComm _serial;
-        private int _idx;
+        private string _id;
         private bool _busy;
         private bool? _connected;
         private string _comPort;
+
+        private IAsyncCommand _closeSerial;
+        private ICommand _portSelect;
+        private IAsyncCommand _serialConn;
+
+        private SerialComm _serial;
         private ObservableCollection<Serial> _comPorts;
 
         #endregion
 
         #region Properties
-        public string Name { get { return "Serial Connection"; } }
+
+        public bool Completed { get; private set; }
+
+        public string COMPORT
+        {
+            get { return _comPort; }
+            set
+            {
+                if (_comPort != value)
+                {
+                    _comPort = value;
+                    OnPropertyChanged(nameof(COMPORT));
+                }
+            }
+        }
+
+        public ObservableCollection<Serial> ComPorts
+        {
+            get
+            {
+                return _comPorts;
+            }
+            set
+            {
+                if (_comPorts == null)
+                    _comPorts = value;
+            }
+        }
+
+        public string ID
+        {
+            get { return _id; }
+            set { if (_id != value) _id = value; }
+        }
+
+        public bool IsAvailable
+        {
+            get
+            {
+                return (_connected == true) ? false : true;
+            }
+        }
 
         public bool IsBusy
         {
@@ -73,50 +116,23 @@ namespace WpfCommApp
             }
         }
 
-        public bool IsAvailable
-        {
-            get
-            {
-                return (_connected == true) ? false : true;
-            }
-        }
+        public string Name { get { return "Serial Connection"; } }
 
-        public int IDX
-        {
-            get { return _idx; }
-            set { if (_idx != value) _idx = value; }
-        }
-
-        public ObservableCollection<Serial> ComPorts
-        {
-            get
-            {
-                return _comPorts;
-            }
-            set
-            {
-                if (_comPorts == null)
-                    _comPorts = value;
-            }
-        }
-
-        public bool Completed { get; private set; }
-
-        public string COMPORT
-        {
-            get { return _comPort; }
-            set
-            {
-                if (_comPort != value)
-                {
-                    _comPort = value;
-                    OnPropertyChanged(nameof(COMPORT));
-                }
-            }
-        }
         #endregion
 
         #region Commands
+
+        public IAsyncCommand BreakSerial
+        {
+            get
+            {
+                if (_closeSerial == null)
+                    _closeSerial = new AsyncRelayCommand(CloseSerial, CanExec);
+
+                return _closeSerial;
+            }
+        }
+
         public IAsyncCommand SerialConnection
         {
             get
@@ -139,19 +155,10 @@ namespace WpfCommApp
             }
         }
 
-        public IAsyncCommand BreakSerial
-        {
-            get
-            {
-                if (_closeSerial == null)
-                    _closeSerial = new AsyncRelayCommand(CloseSerial, CanExec);
-
-                return _closeSerial;
-            }
-        }
         #endregion
 
         #region Constructor
+
         public ConnectViewModel()
         {
             ComPorts = new ObservableCollection<Serial>();
@@ -166,14 +173,20 @@ namespace WpfCommApp
         #endregion
 
         #region Methods
+
+        #region Public
+
+        #endregion
+
+        #region Private
+
         private async Task SetupSerial()
         {
             try
             {
                 IsBusy = true;
                 ObservableCollection<SerialComm> comms = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>);
-                ObservableCollection<Meter> meters = (Application.Current.Properties["meters"] as ObservableCollection<Meter>);
-                ObservableCollection<Meter> imported = (Application.Current.Properties["importedMeters"] as ObservableCollection<Meter>);
+                Dictionary<string, Meter> meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
                 _serial = comms.Last();
                 _comPort = "COM3";      // delete, used for testing
                 if (_serial.IsOpen)
@@ -183,8 +196,6 @@ namespace WpfCommApp
                     _comPort = "COM4";      // delete, used for testing
                 }
 
-                IDX = comms.Count - 1;
-
                 // Logs into meter and retrieves it's ID
                 string id = _serial.SetupSerial(_comPort);
                 var query = ComPorts.Select((value, index) => new { value, index })
@@ -192,35 +203,42 @@ namespace WpfCommApp
                         .Select(x => x.index)
                         .Take(1);
 
-                // delete if statement later this is more so for debugging purposes
+                // delete encapsulated code this is more so for debugging purposes
                 if (query.Count() != 0)
                     ComPorts[query.ElementAt(0)].Used = true;
+                // delete til here
 
                 // Creates new meter if imported meter serial nums do not match, current meter
                 // or sets the imported meter to last index
-                var imports = imported.Where(x => x.ID == id);
-                if (imports.Count() == 0)
+                if (!meters.ContainsKey(id))
                 {
-                    meters.Add(new Meter());
-                    meters[IDX].ID = id;
-                }
-                else
-                    meters.Add(imports.ElementAt(0));
+                    meters.Add(id, new Meter());
+                    meters[id].ID = id;
 
-                // Sets the size of the meter based on the type of meter connected
-                string version = _serial.GetVersion();
-                string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
-                if (lines[2].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1].StartsWith("593"))
-                    meters[IDX].Size = 12;
+                    // Sets the size of the meter based on the type of meter connected
+                    string version = _serial.GetVersion();
+                    string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
+                    if (lines[2].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1].StartsWith("593"))
+                    {
+                        meters[id].Size = 12;
+                        string[] serials = _serial.GetChildSerial().Split(',');
+                        for (int i = 0; i < meters[id].Size; i++)
+                        {
+                            meters[id].Channels.Add(new Channel(i + 1));
+                            // meters[id].Channels[i].Serial = serials[i];
+                            meters[id].Channels[i].Serial = i < serials.Length ? serials[i] : "";       // delete later, used for debugging purposes
+                        }
+                    }
+                }
 
                 IsConnected = true;
                 Completed = true;
 
                 // Send message to enable forward button
                 (Application.Current.Properties["MessageBus"] as MessageBus)
-                    .Publish(new ScreenComplete("switch"));
+                    .Publish(new ScreenComplete("newTab", new Tuple<int, string>(comms.Count - 1, id)));
             }
-            catch 
+            catch
             {
                 IsConnected = false;
             }
@@ -254,6 +272,8 @@ namespace WpfCommApp
         {
             return !IsBusy;
         }
+
+        #endregion
 
         #endregion
     }

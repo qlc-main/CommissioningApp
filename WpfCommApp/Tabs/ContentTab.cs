@@ -78,14 +78,14 @@ namespace WpfCommApp
             Visible = true;
         }
 
-        public ContentTab(int idx, string serialNo)
+        public ContentTab(int idx, int serialIdx, string serial)
         {
             _idx = idx;
-            _meterSerialNo = serialNo;
+            _meterSerialNo = serial;
 
-            Pages.Add(new ConfigurationViewModel(idx));
-            Pages.Add(new CommissioningViewModel(idx));
-            Pages.Add(new ReviewViewModel(idx));
+            Pages.Add(new ConfigurationViewModel(serial));
+            Pages.Add(new CommissioningViewModel(serial, serialIdx));
+            Pages.Add(new ReviewViewModel(serial));
             CurrentPage = Pages[0];
             Visible = true;
         }

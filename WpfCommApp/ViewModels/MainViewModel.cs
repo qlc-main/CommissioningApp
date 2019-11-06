@@ -8,6 +8,8 @@ using System.IO;
 using System.Threading;
 using Microsoft.Win32;
 using System;
+using System.ComponentModel;
+using System.Windows.Data;
 
 namespace WpfCommApp
 {
@@ -15,43 +17,27 @@ namespace WpfCommApp
     {
         #region Fields
 
-        private ICommand _forwardPage;
+        private bool _backwardEnabled;
+        private bool _forwardEnabled;
+        private bool _imported;
+        private Dictionary<string, Meter> _meters;
+        private int _tabIndex;
+
         private ICommand _backwardPage;
         private ICommand _closeTab;
-        private ICommand _openTab;
+        private ICommand _forwardPage;
         private ICommand _importCommand;
         private ICommand _importMeters;
+        private ICommand _openTab;
         private IAsyncCommand _saveCommand;
         private ICommand _uploadCommand;
 
-        private ObservableCollection<Meter> _meters;
         private ObservableCollection<SerialComm> _serial;
         private ObservableCollection<ContentTab> _tabs;
-        private ObservableCollection<ContentTab> _menuTabs;
-        private ObservableCollection<ContentTab> _viewTabs;
-
-        private int _tabIndex;
-
-        private bool _forwardEnabled;
-        private bool _backwardEnabled;
-        private bool _imported;
 
         #endregion
 
         #region Properties
-
-        public bool ForwardEnabled
-        {
-            get { return _forwardEnabled; }
-            set
-            {
-                if (_forwardEnabled != value)
-                {
-                    _forwardEnabled = value;
-                    OnPropertyChanged(nameof(ForwardEnabled));
-                }
-            }
-        }
 
         public bool BackwardEnabled
         {
@@ -66,6 +52,24 @@ namespace WpfCommApp
             }
         }
 
+        public ContentTab CurrentTab
+        {
+            get { return TabIndex < 0 ? null : Tabs[TabIndex]; }
+        }
+
+        public bool ForwardEnabled
+        {
+            get { return _forwardEnabled; }
+            set
+            {
+                if (_forwardEnabled != value)
+                {
+                    _forwardEnabled = value;
+                    OnPropertyChanged(nameof(ForwardEnabled));
+                }
+            }
+        }
+
         public int TabIndex
         {
             get { return _tabIndex; }
@@ -74,37 +78,12 @@ namespace WpfCommApp
                 if (_tabIndex != value)
                 {
                     _tabIndex = value;
-                    foreach(var tab in _tabs)
-                    {
-                        if (tab.Visible)
-                        {
-                            if (_menuTabs.Contains(tab))
-                                _menuTabs.Remove(tab);
-                            if (!_viewTabs.Contains(tab))
-                                _viewTabs.Add(tab);
-                        }
-                        else
-                        {
-                            if (!_menuTabs.Contains(tab))
-                                _menuTabs.Add(tab);
-                            if (_viewTabs.Contains(tab))
-                                _viewTabs.Remove(tab);
-                        }
-                    }
-
                     OnPropertyChanged(nameof(TabIndex));
-                    OnPropertyChanged(nameof(ViewTabs));
-                    OnPropertyChanged(nameof(MenuTabs));
                 }
             }
         }
 
-        public ContentTab CurrentTab
-        {
-            get { return TabIndex < 0 ? null : Tabs[TabIndex]; }
-        }
-
-        public ObservableCollection<Meter> Meters
+        public Dictionary<string, Meter> Meters
         {
             get { return _meters; }
             set { _meters = value; OnPropertyChanged(nameof(Meters)); }
@@ -122,30 +101,13 @@ namespace WpfCommApp
             set { _tabs = value; }
         }
 
-        public ObservableCollection<ContentTab> MenuTabs
-        {
-            get { return _menuTabs; }
-        }
+        public ICollectionView MenuVisibleTabs { get; set; }
 
-        public ObservableCollection<ContentTab> ViewTabs
-        {
-            get { return _viewTabs; }
-        }
+        public ICollectionView ViewVisibleTabs { get; set; }
 
         #endregion
 
         #region Commands
-
-        public ICommand ForwardPage
-        {
-            get
-            {
-                if (_forwardPage == null)
-                    _forwardPage = new RelayCommand(p => Forward());
-
-                return _forwardPage;
-            }
-        }
 
         public ICommand BackwardPage
         {
@@ -166,6 +128,39 @@ namespace WpfCommApp
                     _closeTab = new RelayCommand(p => CloseTab(p as string));
 
                 return _closeTab;
+            }
+        }
+
+        public ICommand ForwardPage
+        {
+            get
+            {
+                if (_forwardPage == null)
+                    _forwardPage = new RelayCommand(p => Forward());
+
+                return _forwardPage;
+            }
+        }
+
+        public ICommand ImportCommand
+        {
+            get
+            {
+                if (_importCommand == null)
+                    _importCommand = new RelayCommand(p => ImportLocation());
+
+                return _importCommand;
+            }
+        }
+
+        public ICommand ImportMeters
+        {
+            get
+            {
+                if (_importMeters == null)
+                    _importMeters = new RelayCommand(p => Import(), p => !_imported);
+
+                return _importMeters;
             }
         }
 
@@ -191,17 +186,6 @@ namespace WpfCommApp
             }
         }
 
-        public ICommand ImportCommand
-        {
-            get
-            {
-                if (_importCommand == null)
-                    _importCommand = new RelayCommand(p => ImportLocation());
-
-                return _importCommand;
-            }
-        }
-
         public ICommand UploadCommand
         {
             get
@@ -210,17 +194,6 @@ namespace WpfCommApp
                     _uploadCommand = new RelayCommand(p => StartCRM());
 
                 return _uploadCommand;
-            }
-        }
-
-        public ICommand ImportMeters
-        {
-            get
-            {
-                if (_importMeters == null)
-                    _importMeters = new RelayCommand(p => Import(), p => !_imported);
-
-                return _importMeters;
             }
         }
 
@@ -233,25 +206,162 @@ namespace WpfCommApp
         /// </summary>
         public MainViewModel()
         {
-            Meters = (Application.Current.Properties["meters"] as ObservableCollection<Meter>);
+            Meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
             Serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>);
             Tabs = new ObservableCollection<ContentTab>();
             Tabs.Add(new ContentTab(-1));
-            _viewTabs = new ObservableCollection<ContentTab>();
-            _viewTabs.Add(Tabs[0]);
-            _menuTabs = new ObservableCollection<ContentTab>();
             TabIndex = 0;
             BackwardEnabled = false;
+
+            ViewVisibleTabs = new CollectionViewSource { Source = Tabs }.View;
+            MenuVisibleTabs = new CollectionViewSource { Source = Tabs }.View;
+
+            ModifyTabs();
         }
 
         #endregion
 
         #region Methods
 
+        #region Public 
+
+        // Functions necessary to create a new Meter Tab
+        // Enables backward button to allow user to get back to Serial Page
+        // Enables forward button because default page is the Configuration Page
+        public void CreateTab(Tuple<int, string> objects)
+        {
+            Tabs.Add(new ContentTab(Tabs.Count - 1, objects.Item1, objects.Item2));
+            TabIndex = Tabs.Count - 1;
+            BackwardEnabled = true;
+            ForwardEnabled = true;
+        }
+
+        public void SwitchMeters()
+        {
+            // Retrieves the serial number of the meter currently attached to the serial port
+            int serialIdx = (CurrentTab.CurrentPage as CommissioningViewModel).IDX;
+            string currSerialNo = Serial[serialIdx].SerialNo;
+            var tabs = _tabs.Where(x => x.MeterSerialNo == currSerialNo);
+            CurrentTab.Visible = false;
+
+            // If the meter exists and there is a tab already created for it then switch to that tab
+            // and change the page to the Commissioning screen
+            if (Meters.ContainsKey(currSerialNo) && tabs.Count() == 1)
+            {
+                tabs.ElementAt(0).CurrentPage = tabs.ElementAt(0).Pages[1];
+                TabIndex = _tabs.IndexOf(tabs.ElementAt(0));
+            }
+            // If the meter exists but there is not a tab created for it then create the tab
+            // and change the page to the Commissioning screen
+            else if (Meters.ContainsKey(currSerialNo))
+            {
+                CreateTab(new Tuple<int, string>(serialIdx, currSerialNo));
+                CurrentTab.CurrentPage = CurrentTab.Pages[1];
+            }
+            // If the meter does not exist, create a new meter and a new tab
+            // then change the page to the Commissioning screen
+            else
+            {
+                Meter m = new Meter();
+                Meters.Add(currSerialNo, m);
+                CreateTab(new Tuple<int, string>(serialIdx, currSerialNo));
+                CurrentTab.CurrentPage = CurrentTab.Pages[1];
+            }
+
+            // Starts the async call for retrieving the phase diagnostic from the meter
+            (CurrentTab.CurrentPage as CommissioningViewModel).StartAsync.Execute(null);
+
+            ModifyTabs();
+        }
+
+        #endregion
+
+        #region Private
+
+        private void Backward()
+        {
+            var pages = CurrentTab.Pages;
+            var current = CurrentTab.CurrentPage;
+            var idx = pages.IndexOf(current);
+
+            if (idx > 0)
+            {
+                CurrentTab.CurrentPage = pages[idx - 1];
+                ForwardEnabled = true;
+                BackwardEnabled = true;
+            }
+            else
+            {
+                if (CurrentTab.Name != "Serial Connection")
+                {
+                    TabIndex = 0;
+                    ForwardEnabled = true;
+                    BackwardEnabled = false;
+                }
+            }
+        }
+
+        private void CloseTab(string p)
+        {
+            int idx = Tabs.Select((value, index) => new { value, index })
+                        .Where(x => x.value.Name == p && x.value.Visible == true)
+                        .Select(x => x.index)
+                        .Take(1)
+                        .ElementAt(0);
+
+            // Do not remove the first tab if there are other tabs open
+            if (Tabs.Where(x => x.Visible == true).Count() > 1 && idx == 0)
+                return;
+
+            // Remove the tab and then adjust the TabIndex to shift to other open tabs
+            Tabs[idx].Visible = false;
+            if (Tabs.Where(x => x.Visible == true).Count() == 0)
+                Application.Current.Shutdown();
+            else if (TabIndex == idx)
+            {
+                TabIndex -= 1;
+                if (p.Contains("(") && p.Contains(")"))
+                {
+                    int start = p.IndexOf("(") + 1;
+                    string id = p.Substring(start, p.IndexOf(")") - start);
+                    var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
+                    meters[id].Commissioned = true;
+                    meters[id].Save(string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
+                }
+            }
+            else
+            {
+                var save = TabIndex;
+                TabIndex = 0;
+                TabIndex = save;
+            }
+
+            ModifyTabs();
+        }
+
+        /// <summary>
+        /// Runs filtering operation on tabs that are visible to user in tab control
+        /// and tabs that are present within the menu
+        /// </summary>
+        private void ModifyTabs()
+        {
+            // Refreshes the filter for the two tab "types"
+            ListCollectionView lcv = (ListCollectionView)ViewVisibleTabs;
+            lcv.Filter = x => (x as ContentTab).Visible;
+            ListCollectionView mcv = (ListCollectionView)MenuVisibleTabs;
+            mcv.Filter = x => !(x as ContentTab).Visible;
+        }
+
+        /// <summary>
+        /// Progresses the window forward one page or progresses user to different tab in tab control
+        /// </summary>
         private void Forward()
         {
+            // The first tab is a control tab thus it's forward operations are different
             if (TabIndex == 0)
             {
+                // if there are more tabs visible than just the first tab
+                // go to the next visible tab
                 if (Tabs.Where(x => x.Visible == true).Count() > 1)
                 {
                     TabIndex = 1;
@@ -262,6 +372,9 @@ namespace WpfCommApp
                     else
                         ForwardEnabled = false;
                 }
+
+                // If there are no other visible tabs then assuming that the user now wants to
+                // input their credentials into the login screen so they can upload into CRM
                 else
                 {
                     var pages = CurrentTab.Pages;
@@ -278,6 +391,9 @@ namespace WpfCommApp
                     }
                 }
             }
+            // if user is on any other tab but the first tab, go to the next page if there are additional pages
+            // if user is at last page for this tab, close the tab and progress to login screen if there are no
+            // more tabs besides the first tab otherwise do nothing
             else
             {
                 var pages = CurrentTab.Pages;
@@ -318,83 +434,6 @@ namespace WpfCommApp
             BackwardEnabled = true;
         }
 
-        private void Backward()
-        {
-            var pages = CurrentTab.Pages;
-            var current = CurrentTab.CurrentPage;
-            var idx = pages.IndexOf(current);
-
-            if (idx > 0)
-            {
-                CurrentTab.CurrentPage = pages[idx - 1];
-                ForwardEnabled = true;
-                BackwardEnabled = true;
-            }
-            else
-            {
-                if (CurrentTab.Name != "Serial Connection")
-                {
-                    TabIndex = 0;
-                    ForwardEnabled = true;
-                    BackwardEnabled = false;
-                }
-            }
-        }
-        
-        private void CloseTab(string p)
-        {
-            int idx = Tabs.Select((value, index) => new { value, index })
-                        .Where(x => x.value.Name == p && x.value.Visible == true)
-                        .Select(x => x.index)
-                        .Take(1)
-                        .ElementAt(0);
-
-            // Do not remove the first tab if there are other tabs open
-            if (Tabs.Where(x => x.Visible == true).Count() > 1 && idx == 0)
-                return;
-
-            // Remove the tab and then adjust the TabIndex to shift to other open tabs
-            Tabs[idx].Visible = false;
-            if (Tabs.Where(x => x.Visible == true).Count() == 0)
-                Application.Current.Shutdown();
-            else if (TabIndex == idx)
-            {
-                TabIndex -= 1;
-                if (p.Contains("(") && p.Contains(")"))
-                {
-                    var meters = (Application.Current.Properties["meters"] as ObservableCollection<Meter>);
-                    meters[idx - 1].Save(string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
-                }
-            }
-            else
-            {
-                var save = TabIndex;
-                TabIndex = 0;
-                TabIndex = save;
-            }
-        }
-
-        private void OpenTab(string p)
-        {
-            foreach(var tab in Tabs)
-            {
-                if (tab.MeterSerialNo == p)
-                {
-                    tab.Visible = true;
-                    TabIndex = Tabs.IndexOf(tab);
-                    return;
-                }
-            }
-
-        }
-
-        private async Task SaveMeters()
-        {
-            string dir = string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
-            foreach (Meter m in (System.Windows.Application.Current.Properties["meters"] as ObservableCollection<Meter>))
-                m.Save(dir);
-        }
-
         private void Import()
         {
             string dir = string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
@@ -419,6 +458,7 @@ namespace WpfCommApp
         private void ImportMeter(string fileName)
         {
             StreamReader sr = new StreamReader(fileName);
+            var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
             Meter m = new Meter();
             Channel c = null;
             string line;
@@ -431,12 +471,18 @@ namespace WpfCommApp
             // Set Meter Properties
             split = line.Split(new char[1] { ',' });
             m.ID = split[0];
+
+            // if meter already exist, overwrite data in meter
+            if (meters.ContainsKey(m.ID))
+                meters.Remove(m.ID);
+
             m.Floor = split[1];
             m.Location = split[2];
             m.PLCVerified = split[3] == "Yes" ? true : false;
             m.Disposition = int.Parse(split[4]);
             m.FSReturn = split[5] == "1" ? true : false;
             m.OprComplete = split[6] == "1" ? true : false;
+            m.Commissioned = split[7] == "1" ? true : false;
 
             while ((line = sr.ReadLine()) != null)
             {
@@ -467,11 +513,32 @@ namespace WpfCommApp
                 }
             }
 
+            sr.Close();
             m.Size = m.Channels.Count;
+            meters.Add(m.ID, m);
+        }
 
-            // only add this meter if it doesn't exist in imported meters
-            if (!(Application.Current.Properties["importedMeters"] as ObservableCollection<Meter>).Any(meter => meter.ID == m.ID))
-                (Application.Current.Properties["importedMeters"] as ObservableCollection<Meter>).Add(m);
+        private void OpenTab(string p)
+        {
+            foreach(var tab in Tabs)
+            {
+                if (tab.MeterSerialNo == p)
+                {
+                    tab.Visible = true;
+                    TabIndex = Tabs.IndexOf(tab);
+                    ModifyTabs();
+                    return;
+                }
+            }
+
+            ModifyTabs();
+        }
+
+        private async Task SaveMeters()
+        {
+            string dir = string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
+            foreach (KeyValuePair<string, Meter> kvp in (Application.Current.Properties["meters"] as Dictionary<string, Meter>))
+                kvp.Value.Save(dir);
         }
 
         private void StartCRM()
@@ -486,6 +553,8 @@ namespace WpfCommApp
                 BackwardEnabled = true;
             }
         }
+
+        #endregion
 
         #endregion
     }

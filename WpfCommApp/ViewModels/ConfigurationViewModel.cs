@@ -14,17 +14,49 @@ namespace WpfCommApp
     {
         #region Fields
 
-        private int _idx;
         private bool _completed;
         private string[] _ctTypes;
-
-        private Meter _meter;
+        private string _id;
 
         private ICommand _notCommissioned;
+
+        private Meter _meter;
 
         #endregion
 
         #region Properties
+
+        public ObservableCollection<Channel> Channels
+        {
+            get
+            {
+                if (_meter == null)
+                    _meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[ID];
+
+                return _meter.Channels;
+            }
+            set
+            {
+                _meter.Channels = value;
+                OnPropertyChanged(nameof(Channels));
+            }
+        }
+
+        public bool Completed
+        {
+            get { return _completed; }
+        }
+
+        public string[] CTTypes
+        {
+            get { return _ctTypes; }
+        }
+
+        public string ID
+        {
+            get { return _id; }
+            set { if (_id != value) _id = value; }
+        }
 
         public Meter Meter
         {
@@ -38,55 +70,6 @@ namespace WpfCommApp
                 _meter = value;
                 OnPropertyChanged(nameof(Meter));
             }
-        }
-
-        public int IDX
-        {
-            get { return _idx; }
-            set { if (_idx != value) _idx = value; }
-        }
-
-        public bool Completed
-        {
-            get { return _completed; }
-        }
-
-        public ObservableCollection<Channel> Channels
-        {
-            get
-            {
-                if (_meter == null)
-                {
-                    Meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
-
-                    if (Meter.Channels.Count == 0)
-                    {
-                        var serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>)[IDX];
-                        string[] serials = serial.GetChildSerial().Split(',');
-                        // this code will move when i make the number of channels dependent on user input
-                        for (int i = 0; i < _meter.Size; i++)
-                        {
-                            _meter.Channels.Add(new Channel(i + 1));
-                            //_meter.Channels[i].Serial = serials[i];
-                            _meter.Channels[i].Serial = i < serials.Length ? serials[i] : "";       // delete later, used for debugging purposes
-                        }
-
-                        // to here 
-                    }
-                }
-
-                return _meter.Channels;
-            }
-            set
-            {
-                _meter.Channels = value;
-                OnPropertyChanged(nameof(Channels));
-            }
-        }
-
-        public string[] CTTypes
-        {
-            get { return _ctTypes; }
         }
 
         public string Name { get { return "Configuration"; } }
@@ -110,9 +93,9 @@ namespace WpfCommApp
 
         #region Constructor
 
-        public ConfigurationViewModel(int idx)
+        public ConfigurationViewModel(string id)
         {
-            _idx = idx;
+            _id = id;
             _completed = true;
             _ctTypes = new string[3] { "flex", "solid", "split" };
         }
@@ -121,6 +104,12 @@ namespace WpfCommApp
 
         #region Methods
 
+        #region Public
+
+        #endregion
+
+        #region Private
+
         private void Uncommission(int id)
         {
             Channels[id - 1].Primary = "";
@@ -128,6 +117,8 @@ namespace WpfCommApp
             Channels[id - 1].CTType = "";
             OnPropertyChanged(nameof(Channels));
         }
+
+        #endregion
 
         #endregion
     }

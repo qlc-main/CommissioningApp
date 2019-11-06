@@ -10,11 +10,13 @@ namespace WpfCommApp
     public class ReviewViewModel : ObservableObject, IPageViewModel
     {
         #region Fields
+
         private bool _break;
         private bool _completed;
         private string[] _ctTypes;
         private Dictionary<int, string> _dispositions;
-        private int _idx;
+        private string _id;
+
         private Meter _meter;
 
         #endregion
@@ -26,7 +28,7 @@ namespace WpfCommApp
             get
             {
                 if (_meter == null)
-                    _meter = (Application.Current.Properties["meters"] as ObservableCollection<Meter>)[IDX];
+                    _meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[ID];
 
                 return _meter.Channels;
             }
@@ -77,10 +79,10 @@ namespace WpfCommApp
             get { return _meter.FSReturn ? "No" : "Yes"; }
         }
 
-        public int IDX
+        public string ID
         {
-            get { return _idx; }
-            set { if (_idx != value) _idx = value; }
+            get { return _id; }
+            set { if (_id != value) _id = value; }
         }
 
         public Meter Meter
@@ -113,9 +115,9 @@ namespace WpfCommApp
 
         #region Constructors
 
-        public ReviewViewModel(int idx)
+        public ReviewViewModel(string id)
         {
-            _idx = idx;
+            _id = id;
             _completed = true;
             _ctTypes = new string[3] { "flex", "solid", "split" };
             _dispositions = new Dictionary<int, string>() {
@@ -132,9 +134,13 @@ namespace WpfCommApp
 
         #region Methods
 
+        #region Public 
+
         #endregion
 
-        #region Commands
+        #region Private
+
+        #endregion
 
         #endregion
     }

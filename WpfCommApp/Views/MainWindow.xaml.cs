@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,6 +24,9 @@ namespace WpfCommApp
     {
         public static MainWindow Current { get; private set; }
 
+        private bool _refreshViewTabFilter;
+        private bool _refreshMenuTabFilter;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -32,6 +36,13 @@ namespace WpfCommApp
             (Application.Current.Properties["MessageBus"] as MessageBus).Subscribe(this);
 
             Current = this;
+
+            _refreshViewTabFilter = true;
+            _refreshMenuTabFilter = true;
+
+#if DEBUG
+            System.Diagnostics.PresentationTraceSources.DataBindingSource.Switch.Level = System.Diagnostics.SourceLevels.Critical;
+#endif
         }
 
         public void Handle(ScreenComplete message)
@@ -42,16 +53,14 @@ namespace WpfCommApp
 
                 if (message.Command == "cont")
                     m.ForwardPage.Execute(null);
+                else if (message.Command == "backward")
+                    m.BackwardPage.Execute(null);
                 else if (message.Command == "disable")
                     m.ForwardEnabled = false;
-                else if (message.Command == "switch")
-                {
-                    string serialNo = m.Meters.Last().ID;
-                    m.Tabs.Add(new ContentTab(m.Tabs.Count - 1, serialNo));
-                    m.TabIndex = m.Tabs.Count - 1;
-                    m.BackwardEnabled = true;
-                    m.ForwardEnabled = true;
-                }
+                else if (message.Command == "newTab")
+                    m.CreateTab(message.Args as Tuple<int, string>);
+                else if (message.Command == "switchMeters")
+                    m.SwitchMeters();
                 else
                     m.ForwardEnabled = true;
             }));
@@ -59,13 +68,44 @@ namespace WpfCommApp
 
         private void Meter_Filter(object sender, System.Windows.Data.FilterEventArgs e)
         {
-            if ((e.Item as Meter).Viewing == false)
+            if (((KeyValuePair<string, Meter>) e.Item).Value.Viewing == false)
                 e.Accepted = false;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             ((e.Source as MainWindow).DataContext as MainViewModel).ImportMeters.Execute(null);
+        }
+
+        private void ViewTabs(object sender, FilterEventArgs e)
+        {
+            if ((sender as CollectionViewSource).View == null) { }
+            else if (_refreshViewTabFilter)
+            {
+                e.Accepted = false;
+
+                _refreshViewTabFilter = false;
+                (sender as CollectionViewSource).View.Refresh();
+                _refreshViewTabFilter = true;
+            }
+            else if (!(e.Item as ContentTab).Visible && !_refreshViewTabFilter)
+                e.Accepted = false;
+        }
+
+        private void MenuTabs(object sender, FilterEventArgs e)
+        {
+            if ((sender as CollectionViewSource).View == null) { }
+            else if (_refreshMenuTabFilter)
+                e.Accepted = false;
+            else if ((e.Item as ContentTab).Visible && !_refreshMenuTabFilter)
+                e.Accepted = false;
+
+            if (_refreshMenuTabFilter && (sender as CollectionViewSource).View != null)
+            {
+                _refreshMenuTabFilter = false;
+                (sender as CollectionViewSource).View.Refresh();
+                _refreshMenuTabFilter = true;
+            }
         }
     }
 }

@@ -10,20 +10,9 @@
         Title="QuadLogic Controls Corp." MinHeight="500" MinWidth="800" Loaded="Window_Loaded">
 
     <Window.Resources>
+
         <local:BindingProxy x:Key="Context" Data="{Binding }" />
 
-        <!-- Sorts the comport collection so I do not have to in the view model-->
-        <CollectionViewSource Source="{Binding Meters}" x:Key="meters" Filter="Meter_Filter">
-            <CollectionViewSource.SortDescriptions>
-                <scm:SortDescription PropertyName="Key" Direction="Ascending" />
-            </CollectionViewSource.SortDescriptions>
-        </CollectionViewSource>
-
-        <!--
-        <CollectionViewSource Source="{Binding Tabs}" x:Key="ViewTabs" Filter="ViewTabs" />
-        <CollectionViewSource Source="{Binding Tabs}" x:Key="MenuTabs" Filter="MenuTabs" />
-        -->
-        
     </Window.Resources>
 
     <Grid>
@@ -62,14 +51,14 @@
         
         <StackPanel Orientation="Vertical" Grid.Row="1">
             <!-- <TabControl x:Name="MeterViewTabs" ItemsSource="{Binding Source={StaticResource ViewTabs}}" SelectedIndex="{Binding TabIndex}" > -->
-            <TabControl x:Name="MeterViewTabs" ItemsSource="{Binding ViewVisibleTabs}" SelectedIndex="{Binding TabIndex}" >
+            <TabControl x:Name="MeterViewTabs" ItemsSource="{Binding ViewVisibleTabs}" SelectedItem="{Binding CurrentTab}" >
                 <TabControl.Resources>
-                    <DataTemplate DataType="{x:Type local:ContentTab}">
+                    <DataTemplate DataType="{x:Type local:ContentTabViewModel}">
                         <local:ContentTabView />
                     </DataTemplate>
                 </TabControl.Resources>
                 <TabControl.ItemTemplate>
-                    <DataTemplate DataType="{x:Type local:ContentTab}">
+                    <DataTemplate DataType="{x:Type local:ContentTabViewModel}">
                         <TextBlock>
                             <Run Text="{Binding Name, Mode=OneWay}" />
                             <Hyperlink Command="{Binding Data.CloseCommand, Source={StaticResource Context}}"

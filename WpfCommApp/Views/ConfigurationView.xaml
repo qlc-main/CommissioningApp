@@ -43,7 +43,7 @@
             
         <DataGrid Grid.RowSpan="6" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" SelectionUnit="Cell" 
                     HeadersVisibility="Column" Background="#f2f2f2" RowBackground="white" AlternatingRowBackground="#ffcccb"
-                    CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" ItemsSource="{Binding Channels}">
+                    CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" ItemsSource="{Binding Meter.Channels}">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Meter" Binding="{Binding ID, Mode=OneWay}" ElementStyle="{StaticResource center}"
                                     HeaderStyle="{StaticResource centerHeader}" />

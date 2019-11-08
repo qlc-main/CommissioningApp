@@ -41,10 +41,17 @@ namespace WpfCommApp
             }
         }
 
-        public string ID
+        public string OperationID
         {
             get { return _id; }
-            set { if (_id != value) _id = value; }
+            set
+            {
+                if (_id != value)
+                {
+                    _id = value;
+                    OnPropertyChanged(nameof(OperationID));
+                }
+            }
         }
 
         public string Name { get { return "Login"; } }
@@ -175,18 +182,6 @@ namespace WpfCommApp
         }
 
         /// <summary>
-        /// Extracts password out of the password box that is passed as an argument
-        /// Initiates asynchronous call to CreateCRM which will use provided credentials
-        /// to log the user into CRM and upload the results to CRM
-        /// </summary>
-        /// <param name="p"></param>
-        private void CRMWrapper(PasswordBox p)
-        {
-            _password = p.Password;
-            Task.Run(CreateCRM);
-        }
-
-        /// <summary>
         /// Uses data from the response string and meter object to create a dictionary that will be used
         /// to upload data as an FS Report to the CRM application
         /// </summary>
@@ -263,12 +258,24 @@ namespace WpfCommApp
             data["_fid_8"] = channel.BreakerNumber;                                         // Breakers
             data["_fid_9"] = string.Format("{0}:{1}", channel.Primary, channel.Secondary);  // CT Ratio
             data["_fid_10"] = channel.CTType;                                               // CT Type
-            data["_fid_21"] = ( int.Parse(channel.Primary) / 100 ).ToString();              // Multiplier
+            data["_fid_21"] = (int.Parse(channel.Primary) / 100).ToString();              // Multiplier
             data["_fid_24"] = rid;                                                          // FS Report
             data["_fid_40"] = string.Format("{0};{1};{2};{3}", channel.Serial, channel.Reason[0], channel.Reason[1], channel.Notes);
             data["ticket"] = _ticket;                                                       // Authentication ticket
 
             return data;
+        }
+
+        /// <summary>
+        /// Extracts password out of the password box that is passed as an argument
+        /// Initiates asynchronous call to CreateCRM which will use provided credentials
+        /// to log the user into CRM and upload the results to CRM
+        /// </summary>
+        /// <param name="p"></param>
+        private void CRMWrapper(PasswordBox p)
+        {
+            _password = p.Password;
+            Task.Run(CreateCRM);
         }
 
         /// <summary>

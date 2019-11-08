@@ -89,10 +89,10 @@ namespace WpfCommApp
                 if (initial && attempts > 1)
                 {
                     carriageReturn = true;
-                    Thread.Sleep(1000);
+                    Thread.Sleep(500);
                     _serial.DiscardInBuffer();
                     _serial.DiscardOutBuffer();
-                    Thread.Sleep(1500);
+                    Thread.Sleep(1000);
                 }
                 // Exits function 10 unsuccessful attempts
                 else if (attempts == 10)
@@ -103,7 +103,6 @@ namespace WpfCommApp
 
                 // Writes command to serial to request meter serial number
                 WriteToSerial("attn -D");
-                Thread.Sleep(1000);
 
                 // Checks if meter serial number was successfully received, if so, 
                 // read response and break out of this execution loop
@@ -255,7 +254,7 @@ namespace WpfCommApp
                 _serial.WriteLine(data);
             else
                 _serial.Write(data + "\r\n");
-            Thread.Sleep(1000);
+            Thread.Sleep(500);
         }
 
         /// <summary>

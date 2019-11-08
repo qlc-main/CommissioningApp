@@ -14,8 +14,6 @@ namespace WpfCommApp
     {
         #region Fields
 
-        private bool _completed;
-        private string[] _ctTypes;
         private string _id;
 
         private ICommand _notCommissioned;
@@ -26,44 +24,13 @@ namespace WpfCommApp
 
         #region Properties
 
-        public ObservableCollection<Channel> Channels
-        {
-            get
-            {
-                if (_meter == null)
-                    _meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[ID];
+        public bool Completed { get; }
 
-                return _meter.Channels;
-            }
-            set
-            {
-                _meter.Channels = value;
-                OnPropertyChanged(nameof(Channels));
-            }
-        }
-
-        public bool Completed
-        {
-            get { return _completed; }
-        }
-
-        public string[] CTTypes
-        {
-            get { return _ctTypes; }
-        }
-
-        public string ID
-        {
-            get { return _id; }
-            set { if (_id != value) _id = value; }
-        }
+        public string[] CTTypes { get; }
 
         public Meter Meter
         {
-            get
-            {
-                return _meter;
-            }
+            get { return _meter; }
 
             private set
             {
@@ -93,11 +60,16 @@ namespace WpfCommApp
 
         #region Constructor
 
+        /// <summary>
+        /// Constructor that initiates the variables necessary for Configuration Page
+        /// </summary>
+        /// <param name="id"></param>
         public ConfigurationViewModel(string id)
         {
             _id = id;
-            _completed = true;
-            _ctTypes = new string[3] { "flex", "solid", "split" };
+            Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
+            Completed = true;
+            CTTypes = (Application.Current.Properties["cttypes"] as string[]);
         }
 
         #endregion
@@ -110,12 +82,17 @@ namespace WpfCommApp
 
         #region Private
 
+        /// <summary>
+        /// Remove the Primary, Secondary, and CTType which will decommission the channel
+        /// and not allow it to be commissioned on the next page
+        /// </summary>
+        /// <param name="id"></param>
         private void Uncommission(int id)
         {
-            Channels[id - 1].Primary = "";
-            Channels[id - 1].Secondary = "";
-            Channels[id - 1].CTType = "";
-            OnPropertyChanged(nameof(Channels));
+            _meter.Channels[id - 1].Primary = "";
+            _meter.Channels[id - 1].Secondary = "";
+            _meter.Channels[id - 1].CTType = "";
+            OnPropertyChanged(nameof(Meter));
         }
 
         #endregion

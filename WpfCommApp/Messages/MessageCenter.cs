@@ -4,7 +4,7 @@ namespace WpfCommApp
     /// <summary>
     /// Message passing interface to send messages from IPageViewModels to MainViewModel
     /// </summary>
-    public class ScreenComplete
+    public class MessageCenter
     {
         #region Fields
 
@@ -23,7 +23,7 @@ namespace WpfCommApp
         /// <summary>
         /// Basic message indicating to move forward to the next page
         /// </summary>
-        public ScreenComplete()
+        public MessageCenter()
             : this("")
         {
         }
@@ -33,7 +33,7 @@ namespace WpfCommApp
         /// determine the MainViewMode's action
         /// </summary>
         /// <param name="command"></param>
-        public ScreenComplete(string command)
+        public MessageCenter(string command)
         {
             Command = command;
         }
@@ -45,7 +45,7 @@ namespace WpfCommApp
         /// </summary>
         /// <param name="command"></param>
         /// <param name="args"></param>
-        public ScreenComplete(string command, object args)
+        public MessageCenter(string command, object args)
         {
             Command = command;
             Args = args;

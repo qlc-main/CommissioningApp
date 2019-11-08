@@ -6,7 +6,7 @@
       xmlns:local="clr-namespace:WpfCommApp"
       xmlns:sys="clr-namespace:System;assembly=mscorlib"
       mc:Ignorable="d" 
-      d:DesignHeight="350" d:DesignWidth="800" DataContextChanged="UserControl_DCChanged">
+      d:DesignHeight="350" d:DesignWidth="800">
 
     <UserControl.Resources>
         <local:StringArrayToStringConverter x:Key="StringArrayToStringConverter" />
@@ -28,7 +28,7 @@
         <DataGrid Margin="10" HorizontalAlignment="Center" VerticalAlignment="Top" SelectionUnit="Cell" 
                     HeadersVisibility="Column" Background="#f2f2f2" RowBackground="white" AlternatingRowBackground="#ffcccb" 
                     CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" 
-                    ItemsSource="{Binding Channels}" AlternationCount="2">
+                    ItemsSource="{Binding Meter.Channels}" AlternationCount="2">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Meter" Width="Auto" ElementStyle="{StaticResource center}" Binding="{Binding ID, Mode=OneWay}"
                                     HeaderStyle="{StaticResource centerHeader}" />
@@ -165,7 +165,7 @@
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal" >
                     <TextBlock Text="Disposition: " Margin="10,10,0,0"/>
-                    <ComboBox ItemsSource="{Binding ComboBoxItems}" Height="20" VerticalAlignment="Top" 
+                    <ComboBox ItemsSource="{Binding Disposition}" Height="20" VerticalAlignment="Top" 
                               Margin="5,10,0,0" MinWidth="100" SelectedValue="{Binding Meter.Disposition}"
                               SelectedValuePath="Value" DisplayMemberPath="Key" />
                 </StackPanel>

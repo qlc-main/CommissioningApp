@@ -71,8 +71,8 @@
     <Compile Include="Helpers\RelayCommand.cs" />
     <Compile Include="Helpers\SerialComm.cs" />
     <Compile Include="Objects\Serial.cs" />
-    <Compile Include="Tabs\ContentTab.cs" />
-    <Compile Include="Messages\ScreenComplete.cs" />
+    <Compile Include="ViewModels\ContentTabViewModel.cs" />
+    <Compile Include="Messages\MessageCenter.cs" />
     <Compile Include="Objects\Channel.cs" />
     <Compile Include="Objects\Meter.cs" />
     <Compile Include="Objects\LedControl.cs" />

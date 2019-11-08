@@ -18,46 +18,24 @@ namespace WpfCommApp
 
         private bool _break;
         private bool _channelComm;
-        private Dictionary<string, int> _comboBoxItems;
         private bool _completed;
-        private Dictionary<string, int>[][] _diff;
         private string _id;
         private int _idx;
         private string[] _oldPhaseAText;
         private string[] _oldPhaseBText;
-        private string[][] _phaseAText;
-        private string[][] _phaseBText;
-
-        private Meter _meter;
-        private SerialComm _serial;
 
         private ICommand _pd;
         private ICommand _spd;
+
+        private Dictionary<string, int>[][] _diff;
+        private Meter _meter;
+        private SerialComm _serial;
 
         #endregion
 
         #region Properties
 
-        public ObservableCollection<Channel> Channels
-        {
-            get
-            {
-                if (_meter == null)
-                    _meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[ID];
-
-                return _meter.Channels;
-            }
-            set
-            {
-                _meter.Channels = value;
-                OnPropertyChanged(nameof(Channels));
-            }
-        }
-
-        public Dictionary<string, int> ComboBoxItems
-        {
-            get { return _comboBoxItems; }
-        }
+        public Dictionary<string, int> Disposition { get; }
 
         public bool Completed
         {
@@ -72,21 +50,15 @@ namespace WpfCommApp
                     if (value)
                         // Send message to enable forward button
                         (Application.Current.Properties["MessageBus"] as MessageBus)
-                            .Publish(new ScreenComplete());
+                            .Publish(new MessageCenter());
 
                     // Disable the forward button if no channels are commissioned
                     else
                         // Send message to enable forward button
                         (Application.Current.Properties["MessageBus"] as MessageBus)
-                            .Publish(new ScreenComplete("disable"));
+                            .Publish(new MessageCenter("disableFwd"));
                 }
             }
-        }
-
-        public string ID
-        {
-            get { return _id; }
-            set { if (_id != value) _id = value; }
         }
 
         public int IDX
@@ -107,15 +79,9 @@ namespace WpfCommApp
 
         public string Name { get { return "Commissioning"; } }
 
-        public string[][] PhaseAText
-        {
-            get { return _phaseAText; }
-        }
+        public string[][] PhaseAText { get; }
 
-        public string[][] PhaseBText
-        {
-            get { return _phaseBText; }
-        }
+        public string[][] PhaseBText { get; }
 
         #endregion
 
@@ -147,22 +113,21 @@ namespace WpfCommApp
 
         #region Constructors
 
+        /// <summary>
+        /// Basic constructor takes in a string id to look up the meter attached to this instance and int
+        /// to access the comm object that this instance should use.
+        /// </summary>
+        /// <param name="id">Index to retrieve Meter object</param>
+        /// <param name="idx">Index to retrieve Serial object</param>
         public CommissioningViewModel(string id, int idx)
         {
-            _phaseAText = new string[4][];
-            _phaseBText = new string[4][];
+            PhaseAText = new string[4][];
+            PhaseBText = new string[4][];
             _diff = new Dictionary<string, int>[2][];
             _id = id;
             _idx = idx;
-
-            _comboBoxItems = new Dictionary<string, int>() {
-                                { "No Problem Found", 10},
-                                { "Wrong Site Wiring", 12},
-                                { "Follow Up Required", 75},
-                                { "Follow Up Resolved", 113},
-                                { "No Meter Communication", 41},
-                                { "Reversed CT(s)", 78},
-                                { "Reversed Phase(s)", 79} };
+            Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
+            Disposition = (Application.Current.Properties["dispositions"] as Dictionary<string, int>);
         }
 
         #endregion
@@ -175,25 +140,34 @@ namespace WpfCommApp
 
         #region Private
 
+        /// <summary>
+        /// This function monitors the values retrieved from the Phase Diagnostic and evaluates
+        /// if there was "enough" of a change to register a change.
+        /// </summary>
         private void Detection()
         {
             float oldP, newP;
             for (int i = 0; i < PhaseAText[0].Length; i++)
             {
-                // check if the values differ
+                // If the old value can be parsed then continue with trying to compare the values
                 if (float.TryParse(_oldPhaseAText[i], out oldP))
                 {
                     newP = float.Parse(PhaseAText[0][i]);
+
+                    // Perform function to determine whether or not the values differ enough to
+                    // register a change
                     if (Math.Abs(oldP - newP) / ((oldP + newP) / 2) > 1)
                     {
                         _diff[0][i]["diff"]++;
                         _diff[0][i]["same"] = 0;
 
-                        // if diff reg counts to 3 change phase and then clear reg
-                        if (_diff[0][i]["diff"] == 3 && Channels[i].Phase1 == null)
+                        // If there are 3 changes registered and this phase has not been set
+                        // then mark this phase as a suggested option and turn off the forced
+                        // value for this phase
+                        if (_diff[0][i]["diff"] > 2 && Meter.Channels[i].Phase1 == null)
                         {
-                            Channels[i].Phase1 = false;
-                            Channels[i].Forced[0] = false;
+                            Meter.Channels[i].Phase1 = false;
+                            Meter.Channels[i].Forced[0] = false;
                             _diff[0][i]["diff"] = 0;
                         }
                     }
@@ -201,7 +175,8 @@ namespace WpfCommApp
                     {
                         _diff[0][i]["same"]++;
 
-                        // if the same for 3 times clear diff reg
+                        // If there is not a significant enough of a change for 5 times in a row
+                        // Zero out the difference and same registers
                         if (_diff[0][i]["same"] == 5)
                         {
                             _diff[0][i]["diff"] = 0;
@@ -218,11 +193,10 @@ namespace WpfCommApp
                         _diff[1][i]["diff"]++;
                         _diff[1][i]["same"] = 0;
 
-                        // if diff reg counts to 3 change phase and then clear reg
-                        if (_diff[1][i]["diff"] == 3 && Channels[i].Phase2 == null)
+                        if (_diff[1][i]["diff"] > 2 && Meter.Channels[i].Phase2 == null)
                         {
-                            Channels[i].Phase2 = false;
-                            Channels[i].Forced[1] = false;
+                            Meter.Channels[i].Phase2 = false;
+                            Meter.Channels[i].Forced[1] = false;
                             _diff[1][i]["diff"] = 0;
                         }
                     }
@@ -237,30 +211,33 @@ namespace WpfCommApp
                         }
                     }
                 }
-
-                //ThreadPool.QueueUserWorkItem(new WaitCallback(Compare), new object[] { _oldPhaseAText[0], _phaseAText[0], i, 'a' });
-                //ThreadPool.QueueUserWorkItem(new WaitCallback(Compare), new object[] { _oldPhaseBText[0], _phaseBText[0], i, 'b' });
             }
 
             _oldPhaseAText = PhaseAText[0].Clone() as string[];
             _oldPhaseBText = PhaseBText[0].Clone() as string[];
         }
 
+        /// <summary>
+        /// Command used to initiate the asynchronous Phase Diagnostic request from meters
+        /// </summary>
         private void GetPhaseDiagnostic()
         {
             Task.Run(PhaseDiagnostic);
         }
 
+        /// <summary>
+        /// Initializes this instance of the class in order to continuously call 
+        /// Phase Diagnostic for Meter.
+        /// </summary>
+        /// <returns></returns>
         private async Task PhaseDiagnostic()
         {
             // Initialize variables if this is the first time 
             if (_serial == null)
             {
                 _serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>)[_idx];
-                _meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[ID];
-                OnPropertyChanged(nameof(Channels));
 
-                int length = Channels.Count;
+                int length = Meter.Channels.Count;
                 _diff[0] = new Dictionary<string, int>[length];
                 _diff[1] = new Dictionary<string, int>[length];
                 _oldPhaseAText = new string[length];
@@ -300,18 +277,25 @@ namespace WpfCommApp
             // wait for the value to be reset
             while (_break) { }
 
+            // Continuous loop to retrieve the phase diagnostic for a meter
             while (true)
             {
+                // Requests the Phase Diagnostic from the meter, if successful
+                // continue with discovering whether or not there was a large enough
+                // change
                 if (Process())
                 {
                     Scan();
                     Detection();
 
+                    // If the meter ID currently connected to the serial vs the meter ID for this instance 
+                    // are different then perform a meter switch 
                     if (_serial.SerialNo != _meter.ID)
                     {
-                        // Command to change idx association for all pages
+                        // Command to change the meter being actively evaluated and 
+                        // associated with the serial port
                         (Application.Current.Properties["MessageBus"] as MessageBus)
-                            .Publish(new ScreenComplete("switchMeters"));
+                            .Publish(new MessageCenter("switchMeters"));
 
                         // Loop here until meter has been updated, then continue execution
                         while (_serial.SerialNo != _meter.ID) { }
@@ -322,10 +306,11 @@ namespace WpfCommApp
                 }
                 else
                 {
-                    // Go back a page because this page is no longer valid due to
-                    // the canceling of the phase diagnostic reads
+                    // The Process function returns false when user closed the Attempting to reconnect
+                    // popup window so this function forces the user to go back a page and cancels
+                    // the phase diagnostic reads
                     (Application.Current.Properties["MessageBus"] as MessageBus)
-                            .Publish(new ScreenComplete("backward"));
+                            .Publish(new MessageCenter("backward"));
 
                     // Loop here until external code sets break state to avoid race condition
                     while (!_break) { }
@@ -339,15 +324,22 @@ namespace WpfCommApp
             _break = false;
         }
 
+        /// <summary>
+        /// Issues Phase Diagnostic call for meter 
+        /// </summary>
+        /// <returns>Boolean indicating success of Phase Diagnostic call</returns>
         private bool Process()
         {
             var tokenSource = new CancellationTokenSource();
             CancellationToken token = tokenSource.Token;
             var task = Task.Factory.StartNew(() => _serial.PhaseDiagnostic(token), token);
 
+            // Waits 5 seconds for Phase Diagnostic call to finish execution if not then display
+            // modal to user and attempt to reconnect 
             if (!task.Wait(5000, token))
             {
-                // display modal to user about disconnect
+                // Create thread that launches modal window for user and continues to poll
+                // original process to determine if it has completed
                 Thread t = new Thread(new ThreadStart(() =>
                 {
                     SerialDisconnectView sd = null;
@@ -393,6 +385,7 @@ namespace WpfCommApp
                 t.Join();
             }
 
+            // Iterate over each line and extract the voltage, current and kW for each channel and phase of the meter
             string buffer = task.Result;
             foreach (string s in buffer.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries))
             {
@@ -406,25 +399,25 @@ namespace WpfCommApp
                 bool phaseA = cols[3] == "1" ? true : false;
                 if (phaseA)
                 {
-                    _phaseAText[0][meter] = float.Parse(cols[6]).ToString("0.00");
+                    PhaseAText[0][meter] = float.Parse(cols[6]).ToString("0.00");
                     float watts = float.Parse(cols[8]);
-                    _phaseAText[1][meter] = (watts / 1000).ToString("0.00");
+                    PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
                     double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[9]), 2));
                     if (double.IsNaN(temp))
-                        _phaseAText[2][meter] = "--";
+                        PhaseAText[2][meter] = "--";
                     else
-                        _phaseAText[2][meter] = temp.ToString("0.00");
+                        PhaseAText[2][meter] = temp.ToString("0.00");
                 }
                 else
                 {
-                    _phaseBText[0][meter] = float.Parse(cols[6]).ToString("0.00");
+                    PhaseBText[0][meter] = float.Parse(cols[6]).ToString("0.00");
                     float watts = float.Parse(cols[8]);
-                    _phaseBText[1][meter] = (watts / 1000).ToString("0.00");
+                    PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
                     double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[9]), 2));
                     if (double.IsNaN(temp))
-                        _phaseBText[2][meter] = "--";
+                        PhaseBText[2][meter] = "--";
                     else
-                        _phaseBText[2][meter] = temp.ToString("0.00");
+                        PhaseBText[2][meter] = temp.ToString("0.00");
                 }
             }
 
@@ -437,11 +430,15 @@ namespace WpfCommApp
                 return true;
         }
 
+        /// <summary>
+        /// Sets the Completed variable for the page, only set completed if at least one 
+        /// phase of one channel has been commissioned
+        /// </summary>
         private void Scan()
         {
             // Check if at least one phase of a channel has been commissioned
             _channelComm = false;
-            foreach (Channel c in Channels)
+            foreach (Channel c in Meter.Channels)
             {
                 if (c.Phase1 == true || c.Phase2 == true)
                 {
@@ -460,6 +457,9 @@ namespace WpfCommApp
             Completed = false;
         }
 
+        /// <summary>
+        /// Stops the Phase Diagnostic call loop
+        /// </summary>
         private void StopPhaseDiagnostic()
         {
             _break = true;

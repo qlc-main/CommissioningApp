@@ -97,6 +97,13 @@ namespace WpfCommApp
         private async Task CreateCRM()
         {
             HttpClient client = new HttpClient();
+            string logDir = String.Format("{0}\\Logs", Directory.GetCurrentDirectory());
+            if (!Directory.Exists(logDir))
+                Directory.CreateDirectory(logDir);
+
+            string uploadedDir = String.Format("{0}\\Uploaded", Directory.GetCurrentDirectory());
+            if (!Directory.Exists(uploadedDir))
+                Directory.CreateDirectory(uploadedDir);
 
             // Logs into CRM using provided credentials and saves login token
             if (!await Authenticate(client))
@@ -109,74 +116,139 @@ namespace WpfCommApp
                 if (!kvp.Value.Commissioned)
                     continue;
 
-                bool opt = !string.IsNullOrEmpty(_id);
-                string query, response, rid;
+                bool opt = !string.IsNullOrEmpty(_id), edit = false;
+                string query, response, rid, fileName;
                 Dictionary<string, string> data;
 
-                // If user provides an operation ID then use that in conjunction with the meter ID 
-                // to find the appropriate information and upload to CRM
-                if (opt) /* operation id provided */
+                // Check if a record already exists with this meter ID if so the current user is editting a record
+                // if not the current user is creating or adding a record, empty response indicates a new record
+                // will be generated
+                response = await DoQuery(client, "bhfwfquxf", String.Format("{{'19'.TV.'{0}'}}", kvp.Value.ID));
+                if (string.IsNullOrEmpty(response))
                 {
-                    rid = "";
-                    response = await GetRecord(client, "bghhvi54m", _id);
-                    string sID = GetSiteID(response);
-                    query = string.Format("{{'391'.TV.'{0}'}}AND{{'186'.TV.'{1}'}}", sID, kvp.Key);
-                    rid = await DoQuery(client, "bghhviw72", query);
+                    // If user provides an operation ID then use that in conjunction with the meter ID 
+                    // to find the appropriate information and upload to CRM
+                    if (opt) /* operation id provided */
+                    {
+                        rid = "";
+                        response = await GetRecord(client, "bghhvi54m", _id);
+                        string sID = GetSiteID(response);
+                        query = string.Format("{{'391'.TV.'{0}'}}AND{{'186'.TV.'{1}'}}", sID, kvp.Key);
+                        rid = await DoQuery(client, "bghhviw72", query);
 
-                    response = await GetRecord(client, "bghhviw72", rid);
-                    data = CreateFSReportData(response, kvp.Value, opt);
+                        response = await GetRecord(client, "bghhviw72", rid);
+                        data = CreateFSData(response, kvp.Value, opt);
+                    }
+                    // If this is meter does not fall under S.O. device commissioning use this method
+                    // to find the appropriate information and upload to CRM
+                    else
+                    {
+                        query = string.Format("{{'16'.TV.'{0}'}}", kvp.Key);
+                        rid = await DoQuery(client, "bgs8pzryj", query);
+
+                        response = await GetRecord(client, "bgs8pzryj", rid);
+                        data = CreateFSData(response, kvp.Value, opt);
+                    }
+
+                    // After data has been retrieved, upload meter data to CRM
+                    // If Successful, continue with uploading the meter point data
+                    // If Unsuccessful, save response to log file and try next meter
+                    response = await AddRecord(client, "bhfwfquxf", data);
+                    if (!response.Contains("<errcode>0</errcode>"))
+                    {
+                        fileName = String.Format("{0}\\{1}-FSReportFailure.txt", logDir, kvp.Key);
+                        DumpToLog(fileName, "Failed to create FS Report, dumping response to log file", response);
+                        rid = "";
+                    }
+                    else
+                    {
+                        // If program successfully created the record, upload the file that the program creates with the meter data
+                        // to that record and then attempt to upload meter point data for each fully commissioned meter point
+                        int start = response.IndexOf("<rid>") + 5;
+                        rid = response.Substring(start, response.IndexOf("</rid>") - start);
+                    }
                 }
-                // If this is meter does not fall under S.O. device commissioning use this method
-                // to find the appropriate information and upload to CRM
                 else
                 {
-                    query = string.Format("{{'16'.TV.'{0}'}}", kvp.Key);
-                    rid = await DoQuery(client, "bgs8pzryj", query);
-
-                    response = await GetRecord(client, "bgs8pzryj", rid);
-                    data = CreateFSReportData(response, kvp.Value, opt);
+                    // Sets the record ID variable that will be editted by this user
+                    // Retrieves the entire record from the database in order to get the 
+                    // update ID from the record. Creates the data object to modify the record
+                    // Issues the EditRecord command, if it fails dump response to log and then
+                    // set the rid to an empty string
+                    rid = response;
+                    edit = true;
+                    response = await GetRecord(client, "bhfwfquxf", rid);
+                    int start = response.IndexOf("update_id>") + 10;
+                    string update = response.Substring(start, response.IndexOf("<", start) - start);
+                    data = EditFSData(kvp.Value, rid, update);
+                    response = await EditRecord(client, "bhfwfquxf", data);
+                    if (!response.Contains("<errcode>0</errcode>"))
+                    {
+                        fileName = String.Format("{0}\\{1}-FSReportFailure.txt", logDir, kvp.Key);
+                        DumpToLog(fileName, "Failed to edit FS Report, dumping response to log file", response);
+                        rid = "";
+                    }
                 }
 
-                // After data has been retrieved, upload meter data to CRM
-                // If Successful, continue with uploading the meter point data
-                // If Unsuccessful, save response to log file and try next meter
-                response = await AddRecord(client, "bhfwfquxf", data);
-                if (!response.Contains("<errcode>0</errcode>"))
+                // If the edit or create record was successful then upload the meter file to CRM
+                if (!string.IsNullOrEmpty(rid))
                 {
-                    Console.WriteLine("Failed to create FS Report, dumping response to log file");
-                    StreamWriter sw = new StreamWriter(String.Format("{0}\\Logs\\{1}-FSReportFailure.txt", Directory.GetCurrentDirectory(), kvp.Key));
-                    sw.Write(response);
-                    sw.Close();
-                }
-                else
-                {
-                    // If program successfully created the record, upload the file that the program creates with the meter data
-                    // to that record and then attempt to upload meter point data for each fully commissioned meter point
-                    int start = response.IndexOf("<rid>") + 5;
-                    rid = response.Substring(start, response.IndexOf("</rid>") - start);
                     await UploadFile(client, "bhfwfquxf", new Tuple<string, string, string, string>("24", kvp.Key + ".txt", rid, String.Format("{0}\\ToUpload\\{1}.txt", Directory.GetCurrentDirectory(), kvp.Key)));
                     foreach (Channel c in kvp.Value.Channels)
                     {
-                        // Check filters out meter points that have not been commissioned
+                        // Check filters out meter points that have not been commissioned, if this 
+                        // meter point existed originally but the current user removed it then delete
+                        // record from CRM
                         if (c.Notes == "Not Commissioned" || (c.Phase1 == null && c.Phase2 == null))
+                        {
+                            // If user is editting a previous FS Report and an entry exists for a Meter Point but 
+                            // current user decommissioned that Meter Point, delete the record from CRM
+                            if (edit)
+                            {
+                                query = String.Format("{{'6'.TV.'{0}'}}AND{{'24'.TV.'{1}'}}", c.ID, rid);
+                                response = await DoQuery(client, "bicmyvvte", query);
+                                if (!string.IsNullOrEmpty(response))
+                                {
+                                    response = await DeleteRecord(client, "bicmyvvte", response);
+                                    // If Delete operation fails then dump report to log 
+                                    if (!response.Contains("<errcode>0</errcode>"))
+                                    {
+                                        fileName = String.Format("{0}\\{1}-{2}-MPDeleteFailure.txt", logDir, kvp.Key, c.ID);
+                                        DumpToLog(fileName, "Failed to delete Meter Point Report, dumping response to log file", response);
+                                    }
+                                }
+                            }
                             continue;
+                        }
 
+                        // Creates the meter point data object and checks if it currently exists in CRM
+                        // If it exists, edit the record instead of creating a new record
                         data = CreateMPData(c, rid);
-                        response = await AddRecord(client, "bicmyvvte", data);
+                        query = String.Format("{{'6'.TV.'{0}'}}AND{{'24'.TV.'{1}'}}", c.ID, rid);
+                        response = await DoQuery(client, "bicmyvvte", query);
+                        if (!string.IsNullOrEmpty(response))
+                        {
+                            data["rid"] = response;
+                            response = await GetRecord(client, "bicmyvvte", response);
+                            int start = response.IndexOf("update_id>") + 10;
+                            string update = response.Substring(start, response.IndexOf("<", start) - start);
+                            data["update_id"] = update;
+                            response = await EditRecord(client, "bicmyvvte", data);
+                        }
+                        else
+                            response = await AddRecord(client, "bicmyvvte", data);
 
-                        // If Unsuccessful at creating meter point data, save response to log file and 
+                        // If Unsuccessful at creating/editting meter point data, save response to log file and 
                         // attempt to work with new meter point or progress to next meter
                         if (!response.Contains("<errcode>0</errcode>"))
                         {
-                            Console.WriteLine("Failed to create Meter Point Report, dumping response to log file");
-                            StreamWriter sw = new StreamWriter(String.Format("{0}\\Logs\\{1}-{2}-MPReportFailure.txt", Directory.GetCurrentDirectory(), kvp.Key, c.ID));
-                            sw.Write(response);
-                            sw.Close();
+                            fileName = String.Format("{0}\\{1}-{2}-MPReportFailure.txt", logDir, kvp.Key, c.ID);
+                            DumpToLog(fileName, "Failed to create/edit Meter Point Report, dumping response to log file", response);
                         }
                     }
 
                     // If successfully created FS Report, move meter save file but keep it locally just in case it needs to be referenced in the future
-                    File.Move(String.Format("{0}\\ToUpload\\{1}.txt", Directory.GetCurrentDirectory(), kvp.Key), String.Format("{0}\\Uploaded\\{1}.txt", Directory.GetCurrentDirectory(), kvp.Key));
+                    File.Move(String.Format("{0}\\ToUpload\\{1}.txt", Directory.GetCurrentDirectory(), kvp.Key), String.Format("{0}\\{1}.txt", uploadedDir, kvp.Key));
                 }
             }
         }
@@ -189,7 +261,7 @@ namespace WpfCommApp
         /// <param name="meter">Meter object that has data that program will upload</param>
         /// <param name="opt">Boolean indicating whether or not the operational ID was supplied</param>
         /// <returns></returns>
-        private Dictionary<string, string> CreateFSReportData(string response, Meter meter, bool opt)
+        private Dictionary<string, string> CreateFSData(string response, Meter meter, bool opt)
         {
             string line;
             Dictionary<string, string> data = new Dictionary<string, string>();
@@ -258,7 +330,7 @@ namespace WpfCommApp
             data["_fid_8"] = channel.BreakerNumber;                                         // Breakers
             data["_fid_9"] = string.Format("{0}:{1}", channel.Primary, channel.Secondary);  // CT Ratio
             data["_fid_10"] = channel.CTType;                                               // CT Type
-            data["_fid_21"] = (int.Parse(channel.Primary) / 100).ToString();              // Multiplier
+            data["_fid_21"] = (int.Parse(channel.Primary) / 100).ToString();                // Multiplier
             data["_fid_24"] = rid;                                                          // FS Report
             data["_fid_40"] = string.Format("{0};{1};{2};{3}", channel.Serial, channel.Reason[0], channel.Reason[1], channel.Notes);
             data["ticket"] = _ticket;                                                       // Authentication ticket
@@ -276,6 +348,35 @@ namespace WpfCommApp
         {
             _password = p.Password;
             Task.Run(CreateCRM);
+        }
+
+        private void DumpToLog(string fileName, string message, string response)
+        {
+            Console.WriteLine(message);
+            StreamWriter sw = new StreamWriter(fileName);
+            sw.Write(response);
+            sw.Close();
+        }
+
+        /// <summary>
+        /// Retrieves data from the meter object in order to edit the RS Report that is 
+        /// currently in CRM
+        /// </summary>
+        /// <param name="meter"></param>
+        /// <returns></returns>
+        private Dictionary<string, string> EditFSData(Meter meter, string rid, string update)
+        {
+            Dictionary<string, string> data = new Dictionary<string, string>();
+            data["_fid_16"] = meter.Notes;                               // Comments for meter
+            data["_fid_85"] = meter.Disposition.ToString();              // Disposition (No Problem Found)
+            data["_fid_23"] = meter.FSReturn ? "1" : "0";                // No FS return required
+            data["_fid_121"] = meter.OprComplete ? "1" : "0";            // Opr Complete
+            data["_fid_161"] = meter.Floor;                              // Device Floor
+            data["rid"] = rid;                                           // Record ID that is being editted
+            data["update_id"] = update;                                  // Update ID for the record
+            data["ticket"] = _ticket;                                    // Authentication ticket
+
+            return data;
         }
 
         /// <summary>
@@ -347,6 +448,19 @@ namespace WpfCommApp
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="db"></param>
+        /// <param name="rid"></param>
+        /// <returns></returns>
+        private async Task<string> DeleteRecord(HttpClient client, string db, string rid)
+        {
+            string paramString = String.Format("ticket={0}&rid={1}", _ticket, rid);
+            return await client.GetStringAsync(string.Format("https://quadlogic.quickbase.com/db/{0}?a=API_DeleteRecord&{1}", db, paramString));
+        }
+
+        /// <summary>
         /// Performs Query operation on specified database using the supplied query string
         /// </summary>
         /// <param name="client">Client used to create http request</param>
@@ -379,6 +493,20 @@ namespace WpfCommApp
                 // error
                 return "";
             }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="db"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        private async Task<string> EditRecord(HttpClient client, string db, Dictionary<string, string> data)
+        {
+            // Creates the parameter url string to append to the base URL string below and then returns the string 
+            string append = string.Join("&", data.Select(x => string.Join("=", x.Key, x.Value)));
+            return await client.GetStringAsync(string.Format("https://quadlogic.quickbase.com/db/{0}?a=API_EditRecord&{1}", db, append));
         }
 
         /// <summary>

@@ -7,7 +7,7 @@ using System.Windows.Input;
 using System.Threading;
 using System.Collections.Generic;
 using Hellang.MessageBus;
-
+using System.Linq;
 
 namespace WpfCommApp
 {
@@ -164,7 +164,8 @@ namespace WpfCommApp
                         // If there are 3 changes registered and this phase has not been set
                         // then mark this phase as a suggested option and turn off the forced
                         // value for this phase
-                        if (_diff[0][i]["diff"] > 2 && Meter.Channels[i].Phase1 == null)
+                        if (_diff[0][i]["diff"] > 2 && Meter.Channels[i].Phase1 == null && 
+                            !Meter.Channels.Any(x => x.Phase1 == false || x.Phase2 == false))
                         {
                             Meter.Channels[i].Phase1 = false;
                             Meter.Channels[i].Forced[0] = false;
@@ -193,7 +194,8 @@ namespace WpfCommApp
                         _diff[1][i]["diff"]++;
                         _diff[1][i]["same"] = 0;
 
-                        if (_diff[1][i]["diff"] > 2 && Meter.Channels[i].Phase2 == null)
+                        if (_diff[1][i]["diff"] > 2 && Meter.Channels[i].Phase2 == null &&
+                            !Meter.Channels.Any(x => x.Phase1 == false || x.Phase2 == false))
                         {
                             Meter.Channels[i].Phase2 = false;
                             Meter.Channels[i].Forced[1] = false;
@@ -440,7 +442,8 @@ namespace WpfCommApp
             _channelComm = false;
             foreach (Channel c in Meter.Channels)
             {
-                if (c.Phase1 == true || c.Phase2 == true)
+                if ((c.Phase1 == true || c.Phase2 == true) && !string.IsNullOrEmpty(c.ApartmentNumber)
+                    && !string.IsNullOrEmpty(c.BreakerNumber))
                 {
                     _channelComm = true;
                     break;

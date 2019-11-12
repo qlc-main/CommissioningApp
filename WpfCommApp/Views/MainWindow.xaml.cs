@@ -51,6 +51,8 @@ namespace WpfCommApp
                     m.ForwardEnabled = false;
                 else if (message.Command == "newTab")
                     m.CreateTab(message.Args as Tuple<int, string>);
+                else if (message.Command == "closeTab")
+                    m.CloseTab(message.Args as Tuple<int, string>);
                 else if (message.Command == "switchMeters")
                     Task.Run(m.SwitchMeters);
                 else

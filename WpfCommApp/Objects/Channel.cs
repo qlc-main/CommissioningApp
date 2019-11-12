@@ -38,7 +38,10 @@ namespace WpfCommApp
             set
             {
                 if (_apartmentNumber != value)
+                {
                     _apartmentNumber = value;
+                    OnPropertyChanged(nameof(ApartmentNumber));
+                }
             }
         }
 
@@ -51,7 +54,10 @@ namespace WpfCommApp
             set
             {
                 if (_breakerNumber != value)
+                {
                     _breakerNumber = value;
+                    OnPropertyChanged(nameof(BreakerNumber));
+                }
             }
         }
 
@@ -240,7 +246,7 @@ namespace WpfCommApp
         public Channel(int id)
         {
             _id = id;
-            _primary = "100";
+            _primary = "";
             _secondary = "0.1";
             _forced = new bool[2] { false, false };
             _phase1 = null;

@@ -138,11 +138,13 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTextColumn Header="Breaker" MinWidth="50" Binding="{Binding BreakerNumber}" ElementStyle="{StaticResource center}"
-                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableCell}" />
-                
-                <DataGridTextColumn Header="Apartment" MinWidth="50" Binding="{Binding ApartmentNumber}" ElementStyle="{StaticResource center}" 
-                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableCell}" />
+                <DataGridTextColumn Header="Breaker" MinWidth="50" Binding="{Binding BreakerNumber, UpdateSourceTrigger=PropertyChanged}" 
+                                    ElementStyle="{StaticResource center}" HeaderStyle="{StaticResource centerHeader}" 
+                                    CellStyle="{StaticResource DisableCell}" />
+
+                <DataGridTextColumn Header="Apartment" MinWidth="50" Binding="{Binding ApartmentNumber, UpdateSourceTrigger=PropertyChanged}" 
+                                    ElementStyle="{StaticResource center}" HeaderStyle="{StaticResource centerHeader}" 
+                                    CellStyle="{StaticResource DisableCell}" />
             </DataGrid.Columns>
         </DataGrid>
 

@@ -12,9 +12,13 @@ namespace WpfCommApp
     {
         #region Fields
 
+        private bool _break;
         private bool _completed;
         private Dictionary<int, string> _dispositions;
         private string _id;
+
+        private ICommand _start;
+        private ICommand _stop;
 
         #endregion
 
@@ -27,7 +31,21 @@ namespace WpfCommApp
             private set
             {
                 if (_completed != value)
+                {
                     _completed = value;
+
+                    // Enable the forward button if necessary details completely filled in
+                    if (value)
+                        // Send message to enable forward button
+                        (Application.Current.Properties["MessageBus"] as MessageBus)
+                            .Publish(new MessageCenter());
+
+                    // Disable the forward button if at least one necessary detail is unavailable
+                    else
+                        // Send message to enable forward button
+                        (Application.Current.Properties["MessageBus"] as MessageBus)
+                            .Publish(new MessageCenter("disableFwd"));
+                }
             }
         }
 
@@ -56,6 +74,28 @@ namespace WpfCommApp
 
         #region Commands
 
+        public ICommand StartAsync
+        {
+            get
+            {
+                if (_start == null)
+                    _start = new RelayCommand(p => Start());
+
+                return _start;
+            }
+        }
+
+        public ICommand StopAsync
+        {
+            get
+            {
+                if (_stop == null)
+                    _stop = new RelayCommand(p => Stop());
+
+                return _stop;
+            }
+        }
+
         #endregion
 
         #region Constructors
@@ -64,7 +104,7 @@ namespace WpfCommApp
         {
             _id = id;
             Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
-            _completed = true;
+            _completed = false;
             CTTypes = (Application.Current.Properties["cttypes"] as string[]);
             _dispositions = (Application.Current.Properties["dispositions"] as Dictionary<string, int>).ToDictionary(x => x.Value, x => x.Key);
         }
@@ -78,6 +118,41 @@ namespace WpfCommApp
         #endregion
 
         #region Private
+
+        private void Start()
+        {
+            Task.Run(Watcher);
+        }
+
+        private void Stop()
+        {
+            _break = true;
+        }
+
+        private async Task Watcher()
+        {
+            // loop here until break value is reset before entering loop
+            while (_break) { }
+
+            while (true)
+            {
+                bool stop = true;
+                foreach (Channel c in Meter.Channels)
+                    if ((c.Phase1 == true && c.Forced[0] && string.IsNullOrEmpty(c.Reason[0])) ||
+                        (c.Phase2 == true && c.Forced[1] && string.IsNullOrEmpty(c.Reason[1])))
+                    {
+                        stop = false;
+                        break;
+                    }
+
+                Completed = stop;
+                Meter.Commissioned = stop;
+                if (_break)
+                    break;
+            }
+
+            _break = false;
+        }
 
         #endregion
 

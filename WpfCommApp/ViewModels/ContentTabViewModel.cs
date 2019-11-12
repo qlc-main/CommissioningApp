@@ -103,10 +103,20 @@ namespace WpfCommApp
         /// <param name="value"></param>
         private void PageHandling(object value)
         {
+            if (value is ConfigurationViewModel)
+                (value as ConfigurationViewModel).StartAsync.Execute(null);
+            else if (_current is ConfigurationViewModel)
+                (_current as ConfigurationViewModel).StopAsync.Execute(null);
+
             if (value is CommissioningViewModel)
                 (value as CommissioningViewModel).StartAsync.Execute(null);
             else if (_current is CommissioningViewModel)
                 (_current as CommissioningViewModel).StopAsync.Execute(null);
+
+            if (value is ReviewViewModel)
+                (value as ReviewViewModel).StartAsync.Execute(null);
+            else if (_current is ReviewViewModel)
+                (_current as ReviewViewModel).StopAsync.Execute(null);
         }
 
         #endregion

@@ -9,6 +9,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Hellang.MessageBus;
 using System;
+using System.Management;
 
 namespace WpfCommApp
 {
@@ -155,8 +156,18 @@ namespace WpfCommApp
         public ConnectViewModel()
         {
             ComPorts = new ObservableCollection<Serial>();
-            foreach (string s in SerialPort.GetPortNames())
-                ComPorts.Add(new Serial(s, true));
+            foreach(ManagementObject m in new ManagementObjectSearcher("root\\cimv2",
+                                          "SELECT * FROM Win32_PnPEntity WHERE ClassGuid=\"{4d36e978-e325-11ce-bfc1-08002be10318}\"").Get())
+            {
+                string com = m["Name"] as string;
+                int start = com.IndexOf("(") + 1;
+                com = com.Substring(start, com.Length - start - 1);
+
+                if (!(m["Name"] as string).Contains("Virtual"))
+                    ComPorts.Add(new Serial(com, false));
+                else
+                    ComPorts.Add(new Serial(com, true));
+            }
 
             IsBusy = false;
             IsConnected = null;
@@ -191,7 +202,20 @@ namespace WpfCommApp
             try
             {
                 IsBusy = true;
-                _serial.Close();
+                var comms = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>);
+                var port = comms.Select((value, index) => new { value, index })
+                        .Where(x => x.value.COM == _comPort)
+                        .Select(x => x.index).First();
+
+                // Closes the port only if it is currently open
+                if (comms[port].IsOpen)
+                {
+                    comms[port].Close();
+
+                    // Send message to close the tab attached that is attached to the serial port that is being closed
+                    (Application.Current.Properties["MessageBus"] as MessageBus)
+                        .Publish(new MessageCenter("closeTab", new Tuple<int, string>(port, comms[port].SerialNo)));
+                }
                 IsConnected = null;
             }
             finally

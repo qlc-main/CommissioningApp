@@ -216,6 +216,24 @@ namespace WpfCommApp
         #region Public 
 
         /// <summary>
+        /// Closes the tab that is associated with the serial port that was recently closed
+        /// and removes the serial and meter object from the collections that are hosting them
+        /// simultaneously saves the meter object. Modifies collections used to control visible
+        /// menu tabs
+        /// </summary>
+        /// <param name="args"></param>
+        public void CloseTab(Tuple<int, string> args)
+        {
+            var comms = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>);
+            comms.RemoveAt(args.Item1);
+            var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
+            meters[args.Item2].Save(string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
+            meters.Remove(args.Item2);
+            _tabs.Remove(_tabs.Where(x => x.MeterSerialNo == args.Item2).First());
+            ModifyTabs();
+        }
+
+        /// <summary>
         /// Creates a new meter tab, enables backward button to allow user to get back to Serial Page
         /// Enables forward button because first page is Configuration page and can have no modifications
         /// </summary>
@@ -230,7 +248,7 @@ namespace WpfCommApp
             });
 
             BackwardEnabled = true;
-            ForwardEnabled = true;
+            ForwardEnabled = false;
         }
 
         /// <summary>
@@ -523,11 +541,11 @@ namespace WpfCommApp
                     c = new Channel(int.Parse(split[0]) - subtract);
                     m.Channels.Add(c);
                     c.Serial = split[1];
+                    c.Primary = split[5];
+                    c.Secondary = split[6];
                     c.ApartmentNumber = split[2];
                     c.BreakerNumber = split[3];
                     c.CTType = split[4];
-                    c.Primary = split[5];
-                    c.Secondary = split[6];
                     if (string.IsNullOrEmpty(split[8])) { c.Phase1 = null; }
                     else { c.Phase1 = bool.Parse(split[8]); }
                     c.Forced[0] = bool.Parse(split[9]);

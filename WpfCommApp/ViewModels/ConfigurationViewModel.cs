@@ -14,9 +14,13 @@ namespace WpfCommApp
     {
         #region Fields
 
+        private bool _break;
+        private bool _completed;
         private string _id;
 
         private ICommand _notCommissioned;
+        private ICommand _start;
+        private ICommand _stop;
 
         private Meter _meter;
 
@@ -24,7 +28,28 @@ namespace WpfCommApp
 
         #region Properties
 
-        public bool Completed { get; }
+        public bool Completed {
+            get { return _completed; }
+            private set
+            {
+                if (_completed != value)
+                {
+                    _completed = value;
+
+                    // Enable the forward button if at least one channel is commissioned
+                    if (value)
+                        // Send message to enable forward button
+                        (Application.Current.Properties["MessageBus"] as MessageBus)
+                            .Publish(new MessageCenter());
+
+                    // Disable the forward button if no channels are commissioned
+                    else
+                        // Send message to enable forward button
+                        (Application.Current.Properties["MessageBus"] as MessageBus)
+                            .Publish(new MessageCenter("disableFwd"));
+                }
+            }
+        }
 
         public string[] CTTypes { get; }
 
@@ -56,6 +81,28 @@ namespace WpfCommApp
             }
         }
 
+        public ICommand StartAsync
+        {
+            get
+            {
+                if (_start == null)
+                    _start = new RelayCommand(p => Start());
+
+                return _start;
+            }
+        }
+
+        public ICommand StopAsync
+        {
+            get
+            {
+                if (_stop == null)
+                    _stop = new RelayCommand(p => Stop());
+
+                return _stop;
+            }
+        }
+
         #endregion
 
         #region Constructor
@@ -68,7 +115,6 @@ namespace WpfCommApp
         {
             _id = id;
             Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
-            Completed = true;
             CTTypes = (Application.Current.Properties["cttypes"] as string[]);
         }
 
@@ -82,6 +128,16 @@ namespace WpfCommApp
 
         #region Private
 
+        private void Start()
+        {
+            Task.Run(Watcher);
+        }
+
+        private void Stop()
+        {
+            _break = true;
+        }
+
         /// <summary>
         /// Remove the Primary, Secondary, and CTType which will decommission the channel
         /// and not allow it to be commissioned on the next page
@@ -93,6 +149,28 @@ namespace WpfCommApp
             _meter.Channels[id - 1].Secondary = "";
             _meter.Channels[id - 1].CTType = "";
             OnPropertyChanged(nameof(Meter));
+        }
+
+        private async Task Watcher()
+        {
+            // Loop while true so that function doesn't exit prematurely
+            while(_break) { }
+
+            bool complete;
+            while(true)
+            {
+                complete = true;
+                foreach(Channel c in Meter.Channels)
+                {
+                    if (!string.IsNullOrEmpty(c.CTType) && (string.IsNullOrEmpty(c.Primary) || string.IsNullOrEmpty(c.Secondary)))
+                    {
+                        complete = false;
+                        break;
+                    }
+                }
+
+                Completed = complete;
+            }
         }
 
         #endregion

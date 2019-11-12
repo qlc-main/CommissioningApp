@@ -16,24 +16,22 @@
 
         <Style TargetType="DataGridCell" x:Key="DisablePhase1Cell" BasedOn="{StaticResource DisableCell}">
             <Style.Triggers>
-                <DataTrigger Binding="{Binding Reason[0]}" Value="NC">
+                <DataTrigger Binding="{Binding Reason[0], Converter={StaticResource Disable}}" Value="True">
                     <Setter Property="Foreground" Value="White" />
                     <Setter Property="Background" Value="Gray" />
+                    <Setter Property="UIElement.IsEnabled" Value="False" />
                 </DataTrigger>
             </Style.Triggers>
-
-            <Setter Property="UIElement.IsEnabled" Value="False" />
         </Style>
 
         <Style TargetType="DataGridCell" x:Key="DisablePhase2Cell" BasedOn="{StaticResource DisableCell}">
             <Style.Triggers>
-                <DataTrigger Binding="{Binding Reason[1]}" Value="NC">
+                <DataTrigger Binding="{Binding Reason[1], Converter={StaticResource Disable}}" Value="True">
                     <Setter Property="Foreground" Value="White" />
                     <Setter Property="Background" Value="Gray" />
+                    <Setter Property="UIElement.IsEnabled" Value="False" />
                 </DataTrigger>
             </Style.Triggers>
-
-            <Setter Property="UIElement.IsEnabled" Value="False" />
         </Style>
 
         <Style TargetType="DataGridCell" x:Key="DisableRowCell" BasedOn="{StaticResource DisableCell}">
@@ -61,20 +59,22 @@
         <DataGrid Margin="10" HorizontalAlignment="Center" VerticalAlignment="Top" SelectionUnit="Cell" 
                     HeadersVisibility="Column" Background="#f2f2f2" RowBackground="white" AlternatingRowBackground="#ffcccb" 
                     CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" 
-                    ItemsSource="{Binding Meter.Channels}" AlternationCount="2">
+                    ItemsSource="{Binding Meter.Channels}" AlternationCount="2" >
 
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Meter" Width="Auto" ElementStyle="{StaticResource center}" Binding="{Binding ID, Mode=OneWay}"
-                                    HeaderStyle="{StaticResource centerHeader}"  CellStyle="{StaticResource DisableRowCell}" />
+                                    HeaderStyle="{StaticResource centerHeader}" />
 
-                <DataGridTextColumn Header="Serial #" Binding="{Binding Serial, Mode=OneWay}"  CellStyle="{StaticResource DisableRowCell}"
+                <DataGridTextColumn Header="Serial #" Binding="{Binding Serial, Mode=OneWay}" 
                                         ElementStyle="{StaticResource center}" HeaderStyle="{StaticResource centerHeader}" />
 
-                <DataGridTextColumn Header="CT Type" Binding="{Binding CTType, Mode=OneWay}" HeaderStyle="{StaticResource centerHeader}" 
-                                            ElementStyle="{StaticResource center}"  CellStyle="{StaticResource DisableRowCell}"/>
+                <DataGridComboBoxColumn Header="CT Type" ItemsSource="{Binding Data.CTTypes, Source={StaticResource proxy}}"
+                                            TextBinding="{Binding CTType, Mode=TwoWay}" HeaderStyle="{StaticResource centerHeader}" 
+                                            ElementStyle="{StaticResource centerCB}" CellStyle="{StaticResource DisableCell}" />
 
-                <DataGridTextColumn Width="Auto" ElementStyle="{StaticResource center}" Binding="{Binding Primary, Mode=OneWay}"
-                                    HeaderStyle="{StaticResource centerHeader}"  CellStyle="{StaticResource DisableRowCell}">
+                <DataGridTextColumn Width="Auto" ElementStyle="{StaticResource center}" 
+                                    Binding="{Binding Primary, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableCell}">
                     <DataGridTextColumn.Header>
                         <TextBlock>
                             <Run Text="Primary" />
@@ -83,8 +83,9 @@
                     </DataGridTextColumn.Header>
                 </DataGridTextColumn>
 
-                <DataGridTextColumn Width="Auto" ElementStyle="{StaticResource center}" Binding="{Binding Secondary, Mode=OneWay}"
-                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableRowCell}">
+                <DataGridTextColumn Width="Auto" ElementStyle="{StaticResource center}" 
+                                    Binding="{Binding Secondary, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableCell}">
                     <DataGridTextColumn.Header>
                         <TextBlock>
                             <Run Text="Secondary" />
@@ -97,8 +98,9 @@
                                         CellStyle="{StaticResource DisablePhase1Cell}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True"
-                                              HorizontalAlignment="Center" IsChecked="{Binding Phase1, Mode=OneWay}"/>
+                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Yellow" 
+                                              HorizontalAlignment="Center" 
+                                              IsChecked="{Binding Phase1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -107,38 +109,81 @@
                                         CellStyle="{StaticResource DisablePhase2Cell}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True"
-                                              HorizontalAlignment="Center" IsChecked="{Binding Phase2, Mode=OneWay}"/>
+                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Yellow" 
+                                              HorizontalAlignment="Center"
+                                              IsChecked="{Binding Phase2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTextColumn MaxWidth="150" ElementStyle="{StaticResource center}" Binding="{Binding Reason[0], Mode=OneWay}" 
+                <DataGridTextColumn MaxWidth="150" ElementStyle="{StaticResource center}" 
+                                    Binding="{Binding Reason[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                                     HeaderStyle="{StaticResource centerHeader}" Visibility="{Binding Data.Meter.Channels, 
                                     Source={StaticResource proxy}, Converter={StaticResource ColumnCollapse}, 
-                                    ConverterParameter={StaticResource IntZero}}"  CellStyle="{StaticResource DisableRowCell}">
+                                    ConverterParameter={StaticResource IntZero}}">
                     <DataGridTextColumn.Header>
                         <TextBlock>
                             <Run Text="Reason Phase 1" />
                             <Run Text="*" Foreground="Red" />
                         </TextBlock>
                     </DataGridTextColumn.Header>
+                    <DataGridTextColumn.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Reason[0]}" Value="NC" >
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="Background" Value="Gray" />
+                                    <Setter Property="UIElement.IsEnabled" Value="False" />
+                                </DataTrigger>
+
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Reason[0], Converter={StaticResource Disable}}" Value="False" />
+                                        <Condition Binding="{Binding Forced[0]}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Background" Value="Gray" />
+                                    <Setter Property="UIElement.IsEnabled" Value="False" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.CellStyle>
                 </DataGridTextColumn>
 
-                <DataGridTextColumn MaxWidth="150" ElementStyle="{StaticResource center}" Binding="{Binding Reason[1], Mode=OneWay}" 
+                <DataGridTextColumn MaxWidth="150" ElementStyle="{StaticResource center}"
+                                    Binding="{Binding Reason[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                                     HeaderStyle="{StaticResource centerHeader}" Visibility="{Binding Data.Meter.Channels, 
                                     Source={StaticResource proxy}, Converter={StaticResource ColumnCollapse}, 
-                                    ConverterParameter={StaticResource IntOne}}" CellStyle="{StaticResource DisableRowCell}">
+                                    ConverterParameter={StaticResource IntOne}}">
                     <DataGridTextColumn.Header>
                         <TextBlock>
                             <Run Text="Reason Phase 2" />
                             <Run Text="*" Foreground="Red" />
                         </TextBlock>
                     </DataGridTextColumn.Header>
+                    <DataGridTextColumn.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Reason[1]}" Value="NC" >
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="Background" Value="Gray" />
+                                    <Setter Property="UIElement.IsEnabled" Value="False" />
+                                </DataTrigger>
+
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Reason[1], Converter={StaticResource Disable}}" Value="False" />
+                                        <Condition Binding="{Binding Forced[1]}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Background" Value="Gray" />
+                                    <Setter Property="UIElement.IsEnabled" Value="False" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.CellStyle>
                 </DataGridTextColumn>
 
-                <DataGridTextColumn MinWidth="50" MaxWidth="125" Binding="{Binding BreakerNumber, Mode=OneWay}" ElementStyle="{StaticResource center}"
-                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableRowCell}">
+                <DataGridTextColumn MinWidth="50" MaxWidth="125" Binding="{Binding BreakerNumber, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource center}"
+                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableCell}">
                     <DataGridTextColumn.Header>
                         <TextBlock>
                             <Run Text="Breaker" />
@@ -147,8 +192,8 @@
                     </DataGridTextColumn.Header>
                 </DataGridTextColumn>
 
-                <DataGridTextColumn MinWidth="50" MaxWidth="200" Binding="{Binding ApartmentNumber, Mode=OneWay}" ElementStyle="{StaticResource center}" 
-                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableRowCell}">
+                <DataGridTextColumn MinWidth="50" MaxWidth="200" Binding="{Binding ApartmentNumber, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource center}" 
+                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableCell}">
                     <DataGridTextColumn.Header>
                         <TextBlock>
                             <Run Text="Apartment" />
@@ -157,8 +202,8 @@
                     </DataGridTextColumn.Header>
                 </DataGridTextColumn>
 
-                <DataGridTextColumn Header="Comment" MinWidth="50" MaxWidth="200" Binding="{Binding Notes, Mode=OneWay}" ElementStyle="{StaticResource center}" 
-                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableRowCell}" />
+                <DataGridTextColumn Header="Comment" MinWidth="50" MaxWidth="200" Binding="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource center}" 
+                                    HeaderStyle="{StaticResource centerHeader}" CellStyle="{StaticResource DisableCell}" />
 
             </DataGrid.Columns>
         </DataGrid>

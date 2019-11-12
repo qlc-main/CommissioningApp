@@ -493,9 +493,16 @@ namespace WpfCommApp
             ofd.Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*";
             ofd.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Recent);
             var result = ofd.ShowDialog();
+            string name;
+            int start;
             if (result == true)
                 foreach (string fileName in ofd.FileNames)
+                {
                     ImportMeter(fileName);
+                    start = fileName.IndexOf("\\") + 1;
+                    name = fileName.Substring(start);
+                    File.Move(fileName, string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload", name }));
+                }
         }
 
         /// <summary>

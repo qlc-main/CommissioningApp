@@ -79,7 +79,7 @@ namespace WpfCommApp
         /// <param name="idx">Int used as index for Tab</param>
         /// <param name="serialIdx">Int used as index into serial comm objects</param>
         /// <param name="serial">String serial number of associated meter with this tab</param>
-        public ContentTabViewModel(int serialIdx, string serial)
+        public ContentTabViewModel(string serialIdx, string serial)
         {
             MeterSerialNo = serial;
             Pages = new List<IPageViewModel>();
@@ -95,7 +95,7 @@ namespace WpfCommApp
         #region Methods
 
         /// <summary>
-        /// Initiates/Stops the polling of the Phase Diagnostic for the metter associated with this 
+        /// Initiates/Stops the async processes for each meter associated with this 
         /// tab instance, if the user is navigating to the Commissioning Page the polling is
         /// started and if the user is navigating away from the Commissioning Page then the polling
         /// is sent a termination signal.

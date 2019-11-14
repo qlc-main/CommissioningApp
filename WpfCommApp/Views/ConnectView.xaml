@@ -73,11 +73,13 @@
                     </Button.ContextMenu>
                 </Button>
             </StackPanel>
-            <Button Content="Connect" Command="{Binding SerialConnection}" IsEnabled="True" 
-                Height="20" Width="100" VerticalContentAlignment="Center"/>
-            <Button Content="Disconnect" Command="{Binding BreakSerial}" IsEnabled="{Binding IsEnabled}" 
+            <Button Content="Connect" Command="{Binding SerialConnection}" IsEnabled="{Binding IsConnectEnabled}" 
+                Height="20" Width="100" VerticalContentAlignment="Center" />
+            <Button Content="Disconnect" Command="{Binding BreakSerial}" IsEnabled="{Binding IsDisconnectEnabled}" 
                 Height="20" Width="100" VerticalContentAlignment="Center" Margin="0 10"/>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+            <Button Content="New Meter" Command="{Binding NewMeter}" IsEnabled="{Binding IsDisconnectEnabled}" 
+                Height="20" Width="100" VerticalContentAlignment="Center" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 10">
                 <TextBlock Text="Connection Status: " VerticalAlignment="Center"/>
                 <local:LedControl IsThreeState="True" Height="24" IsHitTestVisible="False" IsEnabled="True"
                               IsChecked="{Binding IsConnected, Mode=OneWay}" />

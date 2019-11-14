@@ -20,7 +20,7 @@ namespace WpfCommApp
         private bool _channelComm;
         private bool _completed;
         private string _id;
-        private int _idx;
+        private string _idx;
         private string[] _oldPhaseAText;
         private string[] _oldPhaseBText;
 
@@ -61,7 +61,7 @@ namespace WpfCommApp
             }
         }
 
-        public int IDX
+        public string IDX
         {
             get { return _idx; }
             set { if (_idx != value) _idx = value; }
@@ -119,7 +119,7 @@ namespace WpfCommApp
         /// </summary>
         /// <param name="id">Index to retrieve Meter object</param>
         /// <param name="idx">Index to retrieve Serial object</param>
-        public CommissioningViewModel(string id, int idx)
+        public CommissioningViewModel(string id, string idx)
         {
             PhaseAText = new string[4][];
             PhaseBText = new string[4][];
@@ -237,7 +237,7 @@ namespace WpfCommApp
             // Initialize variables if this is the first time 
             if (_serial == null)
             {
-                _serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>)[_idx];
+                _serial = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>)[_idx];
 
                 int length = Meter.Channels.Count;
                 _diff[0] = new Dictionary<string, int>[length];
@@ -290,8 +290,14 @@ namespace WpfCommApp
                     Scan();
                     Detection();
 
-                    // If the meter ID currently connected to the serial vs the meter ID for this instance 
-                    // are different then perform a meter switch 
+                    if (_break)
+                        break;
+                }
+                else
+                {
+                    // The Process function returns false when user closed the Attempting to reconnect
+                    // popup window or if the meter was switched so this function forces
+                    // the user to go back a page and cancels the phase diagnostic reads
                     if (_serial.SerialNo != _meter.ID)
                     {
                         // Command to change the meter being actively evaluated and 
@@ -299,25 +305,18 @@ namespace WpfCommApp
                         (Application.Current.Properties["MessageBus"] as MessageBus)
                             .Publish(new MessageCenter("switchMeters"));
 
-                        // Loop here until meter has been updated, then continue execution
-                        while (_serial.SerialNo != _meter.ID) { }
-                    }
-
-                    if (_break)
                         break;
-                }
-                else
-                {
-                    // The Process function returns false when user closed the Attempting to reconnect
-                    // popup window so this function forces the user to go back a page and cancels
-                    // the phase diagnostic reads
-                    (Application.Current.Properties["MessageBus"] as MessageBus)
-                            .Publish(new MessageCenter("backward"));
+                    }
+                    else
+                    {
+                        (Application.Current.Properties["MessageBus"] as MessageBus)
+                                .Publish(new MessageCenter("backward"));
 
-                    // Loop here until external code sets break state to avoid race condition
-                    while (!_break) { }
+                        // Loop here until external code sets break state to avoid race condition
+                        while (!_break) { }
 
-                    break;
+                        break;
+                    }
                 }
             }
 

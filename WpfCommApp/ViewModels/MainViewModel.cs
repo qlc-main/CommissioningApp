@@ -32,7 +32,7 @@ namespace WpfCommApp
 
         private ContentTabViewModel _current;
         private Dictionary<string, Meter> _meters;
-        private ObservableCollection<SerialComm> _serial;
+        private Dictionary<string, SerialComm> _serial;
         private List<ContentTabViewModel> _tabs;
 
         #endregion
@@ -85,7 +85,7 @@ namespace WpfCommApp
             set { _meters = value; OnPropertyChanged(nameof(Meters)); }
         }
 
-        public ObservableCollection<SerialComm> Serial
+        public Dictionary<string, SerialComm> Serial
         {
             get { return _serial; }
             set { _serial = value; OnPropertyChanged(nameof(Serial)); }
@@ -197,7 +197,7 @@ namespace WpfCommApp
         public MainViewModel()
         {
             Meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
-            Serial = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>);
+            Serial = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
             _tabs = new List<ContentTabViewModel>();
             _tabs.Add(new ContentTabViewModel());
             _current = _tabs[0];
@@ -222,10 +222,10 @@ namespace WpfCommApp
         /// menu tabs
         /// </summary>
         /// <param name="args"></param>
-        public void CloseTab(Tuple<int, string> args)
+        public void CloseTab(Tuple<string, string> args)
         {
-            var comms = (Application.Current.Properties["serial"] as ObservableCollection<SerialComm>);
-            comms.RemoveAt(args.Item1);
+            var comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
+            comms.Remove(args.Item1);
             var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
             meters[args.Item2].Save(string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
             meters.Remove(args.Item2);
@@ -234,11 +234,38 @@ namespace WpfCommApp
         }
 
         /// <summary>
+        /// Creates a new meter tab only if the comport that the new meter tab was requested for 
+        /// is not currently in use by another meter being commissioned.
+        /// </summary>
+        public void CreateNewMeter()
+        {
+            // If the Serial Connection tab is the only tab, create the new meter
+            if (_tabs.Count == 1)
+                (CurrentTab.CurrentPage as ConnectViewModel).CreateNewMeter();
+
+            // If Serial Connection is not the only tab iterate over all tabs and 
+            // verify that the com port is not currently in use, if it is 
+            // return immediately from function otherwise, create a new meter
+            else
+            {
+                string com = (CurrentTab.CurrentPage as ConnectViewModel).COMPORT;
+                foreach(ContentTabViewModel ct in _tabs)
+                {
+                    if (!string.IsNullOrEmpty(ct.MeterSerialNo))
+                        if (com == (ct.Pages[1] as CommissioningViewModel).IDX)
+                            return;
+                }
+
+                (CurrentTab.CurrentPage as ConnectViewModel).CreateNewMeter();
+            }
+        }
+
+        /// <summary>
         /// Creates a new meter tab, enables backward button to allow user to get back to Serial Page
         /// Enables forward button because first page is Configuration page and can have no modifications
         /// </summary>
         /// <param name="objects">Tuple containing the serial port index and meter serial number</param>
-        public void CreateTab(Tuple<int, string> objects)
+        public void CreateTab(Tuple<string, string> objects)
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -258,7 +285,7 @@ namespace WpfCommApp
         public async Task SwitchMeters()
         {
             // Retrieves the serial number of the meter currently attached to the serial port
-            int serialIdx = (CurrentTab.CurrentPage as CommissioningViewModel).IDX;
+            string serialIdx = (CurrentTab.CurrentPage as CommissioningViewModel).IDX;
             string currSerialNo = Serial[serialIdx].SerialNo;
             var tabs = _tabs.Where(x => x.MeterSerialNo == currSerialNo);
             CurrentTab.Visible = false;
@@ -268,15 +295,16 @@ namespace WpfCommApp
             if (Meters.ContainsKey(currSerialNo) && tabs.Count() == 1)
             {
                 var tab = tabs.ElementAt(0);
-                CurrentTab = _tabs[_tabs.IndexOf(tab)];
+                CurrentTab = tab;
                 tab.Visible = true;
                 tab.CurrentPage = tab.Pages[1];
+                (CurrentTab.CurrentPage as CommissioningViewModel).StartAsync.Execute(null);
             }
             // If the meter exists (imported) but there is not a tab created for it then create the tab
             // and change to the Commissioning page
             else if (Meters.ContainsKey(currSerialNo))
             {
-                CreateTab(new Tuple<int, string>(serialIdx, currSerialNo));
+                CreateTab(new Tuple<string, string>(serialIdx, currSerialNo));
                 CurrentTab.CurrentPage = CurrentTab.Pages[1];
             }
             // If the meter does not exist, create a new meter and a new tab
@@ -301,12 +329,9 @@ namespace WpfCommApp
                     }
                 }
 
-                CreateTab(new Tuple<int, string>(serialIdx, currSerialNo));
+                CreateTab(new Tuple<string, string>(serialIdx, currSerialNo));
                 CurrentTab.CurrentPage = CurrentTab.Pages[1];
             }
-
-            // Starts the async call for retrieving the phase diagnostic from the meter
-            (CurrentTab.CurrentPage as CommissioningViewModel).StartAsync.Execute(null);
 
             // Modifies the collections that represent which tabs should be visible in the menu and which tabs
             // are present in the tab control for user interaction
@@ -581,10 +606,13 @@ namespace WpfCommApp
         private void ModifyTabs()
         {
             // Refreshes the filter for the two tab "types"
+            var curr = CurrentTab;
             ListCollectionView lcv = (ListCollectionView)ViewVisibleTabs;
             lcv.Filter = x => (x as ContentTabViewModel).Visible;
             ListCollectionView mcv = (ListCollectionView)MenuVisibleTabs;
             mcv.Filter = x => !(x as ContentTabViewModel).Visible;
+            if (CurrentTab != curr)
+                CurrentTab = curr;
         }
 
         /// <summary>

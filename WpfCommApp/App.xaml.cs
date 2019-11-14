@@ -22,7 +22,7 @@ namespace WpfCommApp
             Current.Properties["MessageBus"] =
                     new MessageBus(uiThreadMarshaller);
             // Collection of active serial objects
-            Current.Properties["serial"] = new ObservableCollection<SerialComm>() { new SerialComm() };
+            Current.Properties["serial"] = new Dictionary<string, SerialComm>() { { "", new SerialComm() } };
             // Collection of meter objects that have been imported or created during program execution
             Current.Properties["meters"] = new Dictionary<string, Meter>();
             // CT Types available for commissioning

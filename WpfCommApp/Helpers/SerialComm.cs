@@ -163,14 +163,14 @@ namespace WpfCommApp
             int failed = 0;
             while (_serial.BytesToRead == 0)
             {
-                // If response is not received after about 3 seconds then assume that probe was disconnected 
-                // try to log back into meter and issue new phase diagnostic command
+                // If response is not received after about 3 seconds then assume
+                // that probe was disconnected clear buffers, exit function and
+                // try again
                 if (++failed % 10 == 0)
                 {
                     _serial.DiscardInBuffer();
                     _serial.DiscardOutBuffer();
-                    if (Login(false))
-                        WriteToSerial("mscan -Gp", true);
+                    return "";
                 }
 
                 // Cancels current function execution because user requested to end execution
@@ -184,7 +184,22 @@ namespace WpfCommApp
             // for further use
             ReadBuffer(true);
             Console.Write(serialBuffer + ' ');
-            return serialBuffer;
+            string temp = serialBuffer;
+
+            // Reads serial number after each PhaseDiagnostic read to determine if
+            // still attached to the same meter
+            WriteToSerial("attn -d");
+            ReadBuffer(true);
+            string newSerial = SerialNo;
+            if (!string.IsNullOrEmpty(serialBuffer) && serialBuffer.Contains("attn -d"))
+                newSerial = serialBuffer.Split(new char[1] { '\n' })[3].Split(new char[0])[0];
+            if (SerialNo != newSerial)
+            {
+                SerialNo = newSerial;
+                return "";
+            }
+            else
+                return temp;
         }
 
         /// <summary>

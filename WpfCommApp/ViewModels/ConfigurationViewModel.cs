@@ -170,7 +170,12 @@ namespace WpfCommApp
                 }
 
                 Completed = complete;
+
+                if (_break)
+                    break;
             }
+
+            _break = false;
         }
 
         #endregion

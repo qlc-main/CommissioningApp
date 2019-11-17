@@ -59,7 +59,12 @@ namespace WpfCommApp
             {
                 if (_current != value)
                 {
+                    _current.CurrentPage = null;
                     _current = value;
+
+                    if (_current.CurrentPage == null)
+                        _current.CurrentPage = _current.Previous;
+
                     OnPropertyChanged(nameof(CurrentTab));
                     TabHandling();
                 }
@@ -298,7 +303,6 @@ namespace WpfCommApp
                 CurrentTab = tab;
                 tab.Visible = true;
                 tab.CurrentPage = tab.Pages[1];
-                (CurrentTab.CurrentPage as CommissioningViewModel).StartAsync.Execute(null);
             }
             // If the meter exists (imported) but there is not a tab created for it then create the tab
             // and change to the Commissioning page

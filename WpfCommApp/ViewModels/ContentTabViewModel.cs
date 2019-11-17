@@ -25,6 +25,8 @@ namespace WpfCommApp
             {
                 if (_current != value)
                 {
+                    if (_current != null)
+                        Previous = _current;
                     PageHandling(value);
                     _current = value;
                     OnPropertyChanged(nameof(CurrentPage));
@@ -34,9 +36,20 @@ namespace WpfCommApp
 
         public string MeterSerialNo { get; }
 
-        public string Name { get { return CurrentPage.Name + (MeterSerialNo == "" ? "" : " (" + MeterSerialNo + ")"); } }
+        public string Name 
+        { 
+            get 
+            {
+                if (CurrentPage != null)
+                    return CurrentPage.Name + (MeterSerialNo == "" ? "" : " (" + MeterSerialNo + ")");
+                else
+                    return Previous.Name + (MeterSerialNo == "" ? "" : " (" + MeterSerialNo + ")");
+            } 
+        }
 
         public List<IPageViewModel> Pages { get; }
+
+        public IPageViewModel Previous { get; private set; }
 
         public bool Visible
         {
@@ -46,6 +59,8 @@ namespace WpfCommApp
                 if (_visible != value)
                 {
                     _visible = value;
+                    if (!_visible)
+                        CurrentPage = null;
                     OnPropertyChanged(nameof(Visible));
                 }
             }

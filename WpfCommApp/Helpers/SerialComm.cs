@@ -297,6 +297,8 @@ namespace WpfCommApp
             if (echo)
                 Console.WriteLine(data);
 #endif
+            _serial.DiscardInBuffer();
+            _serial.DiscardOutBuffer();
             if (!carriageReturn)
                 _serial.WriteLine(data);
             else

@@ -10,7 +10,7 @@ namespace WpfCommApp
     {
         #region Fields
         private bool _used;
-        private bool _default;
+        private bool _virtual;
         private string _name;
 
         #endregion
@@ -23,10 +23,10 @@ namespace WpfCommApp
             set { if (_used != value) _used = value; }
         }
 
-        public bool Default
+        public bool Virtual
         {
-            get { return _default; }
-            set { if (_default != value) _default = value; }
+            get { return _virtual; }
+            set { if (_virtual != value) _virtual = value; }
         }
 
         public string Name
@@ -38,11 +38,11 @@ namespace WpfCommApp
         #endregion
 
         #region Constructors
-        public Serial(string name, bool def)
+        public Serial(string name, bool virt)
         {
             _name = name;
             _used = false;
-            _default = def;
+            _virtual = virt;
         }
 
         #endregion

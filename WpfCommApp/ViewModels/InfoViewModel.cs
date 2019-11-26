@@ -8,41 +8,27 @@ using System.Windows.Input;
 
 namespace WpfCommApp
 {
-    public class SerialDisconnectViewModel : ObservableObject
+    public class InfoViewModel : ObservableObject
     {
         #region Fields
 
+        private bool _run;
+        private string _startText;
+        private bool _userClosedWindow;
+        private string _windowText;
+
         private ICommand _closing;
+
         private CancellationToken _ct;
         private CancellationTokenSource _cts;
-        private string _disconnectText;
-        private bool _run;
         private Task _task;
-        private bool _userClosedWindow;
-        private SerialDisconnectView _view;
+        private InfoView _view;
 
         #endregion
 
         #region Properties
 
-        public string DisconnectText
-        {
-            get { return _disconnectText; }
-            set
-            {
-                if (_disconnectText != value)
-                {
-                    _disconnectText = value;
-                    OnPropertyChanged(nameof(DisconnectText));
-                }
-            }
-        }
-
-        public SerialDisconnectView View
-        {
-            get { return _view; }
-            set { _view = value; OnPropertyChanged(nameof(View)); }
-        }
+        public string Title { get; }
 
         public bool UserClosedWindow
         {
@@ -53,6 +39,25 @@ namespace WpfCommApp
                 {
                     _userClosedWindow = value;
                     OnPropertyChanged(nameof(UserClosedWindow));
+                }
+            }
+        }
+
+        public InfoView View
+        {
+            get { return _view; }
+            set { _view = value; OnPropertyChanged(nameof(View)); }
+        }
+
+        public string WindowText
+        {
+            get { return _windowText; }
+            set
+            {
+                if (_windowText != value)
+                {
+                    _windowText = value;
+                    OnPropertyChanged(nameof(WindowText));
                 }
             }
         }
@@ -76,12 +81,14 @@ namespace WpfCommApp
 
         #region Constructors
 
-        public SerialDisconnectViewModel(Task task, CancellationToken ct, CancellationTokenSource cts)
+        public InfoViewModel(Task task, CancellationToken ct, CancellationTokenSource cts, string title, string text)
         {
-            _task = task;
             _ct = ct;
             _cts = cts;
             _run = true;
+            _startText = text;
+            _task = task;
+            Title = title;
             _userClosedWindow = true;
         }
 
@@ -96,7 +103,7 @@ namespace WpfCommApp
             {
                 do
                 {
-                    DisconnectText = "Attempting to Reconnect" + new String('.', i++ % 4);
+                    WindowText = _startText + new String('.', i++ % 4);
                 }
                 while (!_task.Wait(1000) && _run);
             }

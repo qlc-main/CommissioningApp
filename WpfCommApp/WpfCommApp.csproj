@@ -84,7 +84,7 @@
     <Compile Include="ViewModels\LoginViewModel.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="ViewModels\ReviewViewModel.cs" />
-    <Compile Include="ViewModels\SerialDisconnectViewModel.cs" />
+    <Compile Include="ViewModels\InfoViewModel.cs" />
     <Compile Include="Views\CommissioningView.xaml.cs">
       <DependentUpon>CommissioningView.xaml</DependentUpon>
     </Compile>
@@ -103,8 +103,8 @@
     <Compile Include="Views\ReviewView.xaml.cs">
       <DependentUpon>ReviewView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\SerialDisconnectView.xaml.cs">
-      <DependentUpon>SerialDisconnectView.xaml</DependentUpon>
+    <Compile Include="Views\InfoView.xaml.cs">
+      <DependentUpon>InfoView.xaml</DependentUpon>
     </Compile>
     <Page Include="Views\ContentTabView.xaml">
       <SubType>Designer</SubType>
@@ -142,7 +142,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Views\SerialDisconnectView.xaml">
+    <Page Include="Views\InfoView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -15,18 +15,18 @@ using System.Windows.Shapes;
 namespace WpfCommApp
 {
     /// <summary>
-    /// Interaction logic for SerialDisconnect.xaml
+    /// Interaction logic for Info.xaml
     /// </summary>
-    public partial class SerialDisconnectView : Window
+    public partial class InfoView : Window
     {
-        public SerialDisconnectView()
+        public InfoView()
         {
             InitializeComponent();
         }
 
         private void CloseCommand(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            var sdvm = (this.DataContext as SerialDisconnectViewModel);
+            var sdvm = (this.DataContext as InfoViewModel);
             if (sdvm.UserClosedWindow)
             {
                 sdvm.StopPolling();

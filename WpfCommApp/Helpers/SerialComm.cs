@@ -109,13 +109,12 @@ namespace WpfCommApp
         /// <summary>
         /// Logins into the meter head for a MC5N meter using pre supplied passwords
         /// </summary>
-        /// <param name="initial">boolean indicating if this is the first time attempting 
-        /// to login or if attempting to login to meter after a previous successful login</param>
         /// <returns>Boolean indicating success of login attempt</returns>
         public bool Login()
         {
             // Makes 10 attempts to get serial number of currently connected meter
             int attempts = 0;
+            carriageReturn = false;
             while (true)
             {
                 // Modifies communication method if this is first login attempt
@@ -155,8 +154,8 @@ namespace WpfCommApp
                 attempts++;
             }
 
-            // Writes buffer to the command line and retrieves serial number
 #if DEBUG
+            // Writes buffer to the command line and retrieves serial number
             Console.WriteLine(SerialBuffer);
 #endif
             string[] split = SerialBuffer.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
@@ -172,7 +171,7 @@ namespace WpfCommApp
             foreach(string s in pwds)
             {
                 WriteToSerial(String.Format("attn -S{0} {1}", SerialNo, s));
-                ReadBuffer(false);
+                ReadBuffer(true);
 #if DEBUG
                 Console.Write(SerialBuffer + " ");
 #endif
@@ -199,7 +198,14 @@ namespace WpfCommApp
             WriteToSerial("attn -d", false);
             ReadBuffer(true);
             string newSerial = "";
-            if (!string.IsNullOrEmpty(SerialBuffer) && SerialBuffer.Contains("attn -d"))
+            if (string.IsNullOrEmpty(SerialBuffer))
+            {
+                if (Login())
+                    return "switch";
+                else
+                    return "failed";
+            }
+            else if (SerialBuffer.Contains("attn -d"))
             {
                 foreach (string line in SerialBuffer.Split(new char[1] { '\n' }))
                 {
@@ -212,10 +218,13 @@ namespace WpfCommApp
             }
 
             if (string.IsNullOrEmpty(newSerial))
-                return "failed";
+            {
+                Console.WriteLine("cops and robbers");
+                return "failings";
+            }
 
             // if ((_count++ > 0 && _count - 1 < 6) || _count > 15)
-            //    newSerial = "82072130";
+            //     newSerial = "82072117";
 
             // New Serial number so propagate message up to switch meter
             if (SerialNo != newSerial)
@@ -252,7 +261,6 @@ namespace WpfCommApp
 #if DEBUG
             Console.Write(SerialBuffer + ' ');
 #endif
-
             return SerialBuffer;
         }
 

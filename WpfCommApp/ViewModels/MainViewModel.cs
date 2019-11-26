@@ -506,8 +506,12 @@ namespace WpfCommApp
         private void Import()
         {
             string dir = string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
-            foreach(string file in Directory.GetFiles(dir))
-                ImportMeter(file);
+
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+            else
+                foreach(string file in Directory.GetFiles(dir))
+                    ImportMeter(file);
 
             _imported = true;
         }

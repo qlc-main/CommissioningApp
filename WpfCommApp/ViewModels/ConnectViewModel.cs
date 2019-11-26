@@ -156,19 +156,6 @@ namespace WpfCommApp
         public ConnectViewModel()
         {
             ComPorts = new ObservableCollection<Serial>();
-            foreach(ManagementObject m in new ManagementObjectSearcher("root\\cimv2",
-                                          "SELECT * FROM Win32_PnPEntity WHERE ClassGuid=\"{4d36e978-e325-11ce-bfc1-08002be10318}\"").Get())
-            {
-                string com = m["Name"] as string;
-                int start = com.IndexOf("(") + 1;
-                com = com.Substring(start, com.Length - start - 1);
-
-                if (!(m["Name"] as string).Contains("Virtual"))
-                    ComPorts.Add(new Serial(com, false));
-                else
-                    ComPorts.Add(new Serial(com, true));
-            }
-
             IsBusy = false;
             COMPORT = "          ";
         }
@@ -279,28 +266,62 @@ namespace WpfCommApp
         {
             try
             {
-                IsBusy = true;
-                Dictionary<string, SerialComm> comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
+                var tokenSource = new CancellationTokenSource();
+                CancellationToken token = tokenSource.Token;
+                var task = Task.Factory.StartNew(() => EstablishSerial(), token);
 
-                if (!comms.ContainsKey(COMPORT))
+                // Waits 5 seconds for Phase Diagnostic call to finish execution if not then display
+                // modal to user and attempt to reconnect 
+                if (!task.Wait(500, token))
                 {
-                    comms.Add(COMPORT, new SerialComm());
-                    _serial = comms[COMPORT];
+                    // Create thread that launches modal window for user and continues to poll
+                    // original process to determine if it has completed
+                    Thread t = new Thread(new ThreadStart(() =>
+                    {
+                        InfoView info = null;
+                        InfoViewModel ifvm = new InfoViewModel(task, token, tokenSource, "Meter Serial Connection", "Connecting to Meter");
+
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            info = new InfoView
+                            {
+                                Owner = Application.Current.MainWindow,
+                                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                                DataContext = ifvm
+                            };
+
+                            info.Show();
+                        });
+
+                        var monitor = Task.Run(ifvm.Poll);
+                        monitor.Wait();
+
+                        if (monitor.Result)
+                        {
+                            // Close the window if the program has successfully re-established communication
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                ifvm.UserClosedWindow = false;
+                                info.Close();
+                            });
+                        }
+                        else
+                        {
+                            // Wait for the task to complete
+                            while (task.Status != TaskStatus.RanToCompletion) { }
+
+                            // exit this function
+                            return;
+                        }
+                    }));
+
+                    t.SetApartmentState(ApartmentState.STA);
+                    t.IsBackground = true;
+                    t.Start();
+                    t.Join();
                 }
-                else
-                {
-                    return;
-                }
-
-                CreateNewMeter();
-
-                Completed = true;
-
-                // Send message to create new tab that will be able to commission a meter
-                (Application.Current.Properties["MessageBus"] as MessageBus)
-                    .Publish(new MessageCenter("newTab", new Tuple<string, string>(_comPort, _id)));
             }
-            catch
+            catch 
             {
             }
             finally
@@ -310,6 +331,27 @@ namespace WpfCommApp
             }
         }
 
+        private void EstablishSerial()
+        {
+            IsBusy = true;
+            Dictionary<string, SerialComm> comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
+
+            if (!comms.ContainsKey(COMPORT))
+            {
+                comms.Add(COMPORT, new SerialComm());
+                _serial = comms[COMPORT];
+            }
+            else
+                return;
+
+            CreateNewMeter();
+
+            Completed = true;
+
+            // Send message to create new tab that will be able to commission a meter
+            (Application.Current.Properties["MessageBus"] as MessageBus)
+                .Publish(new MessageCenter("newTab", new Tuple<string, string>(_comPort, _id)));
+        }
         #endregion
 
         #endregion

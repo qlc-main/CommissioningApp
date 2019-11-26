@@ -96,7 +96,7 @@ namespace WpfCommApp
             get
             {
                 if (_pd == null)
-                    _pd = new RelayCommand(p => GetPhaseDiagnostic());
+                    _pd = new RelayCommand(p => Start());
 
                 return _pd;
             }
@@ -107,7 +107,7 @@ namespace WpfCommApp
             get
             {
                 if (_spd == null)
-                    _spd = new RelayCommand(p => StopPhaseDiagnostic());
+                    _spd = new RelayCommand(p => Stop());
 
                 return _spd;
             }
@@ -145,7 +145,7 @@ namespace WpfCommApp
             Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
             Disposition = (Application.Current.Properties["dispositions"] as Dictionary<string, int>);
 
-            //_count = 0;
+            // _count = 0;
         }
 
         #endregion
@@ -168,7 +168,7 @@ namespace WpfCommApp
             bool twoMan = true;
             for (int i = 0; i < PhaseAText[0].Length; i++)
             {
-                // Logic for if this is a two man commissioning team (can still be implemented for a one man team
+                // Logic for if this is a two man commissioning team (can still be implemented for a one man team)
                 if (twoMan)
                 {
                     if (float.TryParse(_oldPhaseAText[i], out oldP))
@@ -285,10 +285,10 @@ namespace WpfCommApp
         /// <summary>
         /// Command used to initiate the asynchronous Phase Diagnostic request from meters
         /// </summary>
-        private void GetPhaseDiagnostic()
+        private void Start()
         {
-            Task.Run(PhaseDiagnostic);
-            Task.Run(Scan);
+                Task.Run(PhaseDiagnostic);
+                Task.Run(Scan);
         }
 
         /// <summary>
@@ -299,18 +299,22 @@ namespace WpfCommApp
         /// <param name="c">Channel associated with this control binding</param>
         private void PhaseClicked(string phase, Channel c)
         {
-            if (phase == "Phase1" && _checker[0][c.ID - 1] && c.Phase1 != false)
+            // Prevents user from suggesting more than one channel at a time
+            // User can suggest separate phase of channel if there is already another phase suggested
+            bool contains = Meter.Channels.Any(channel => (channel.Phase1 == false || channel.Phase2 == false) && channel.ID != c.ID);
+
+            if (phase == "Phase1" && _checker[0][c.ID - 1])
             {
-                if (c.Phase1 == null)
+                if (c.Phase1 == null && !contains)
                     c.Phase1 = false;
-                else
+                else if (c.Phase1 == false)
                     c.Phase1 = null;
             }
-            else if (phase == "Phase2" && _checker[1][c.ID - 1] && c.Phase2 != false)
+            else if (phase == "Phase2" && _checker[1][c.ID - 1])
             {
-                if (c.Phase2 == null)
+                if (c.Phase2 == null && !contains)
                     c.Phase2 = false;
-                else
+                else if (c.Phase2 == false)
                     c.Phase2 = null;
             }
         }
@@ -430,22 +434,22 @@ namespace WpfCommApp
                 // original process to determine if it has completed
                 Thread t = new Thread(new ThreadStart(() =>
                 {
-                    SerialDisconnectView sd = null;
-                    SerialDisconnectViewModel sdvm = new SerialDisconnectViewModel(task, token, tokenSource);
+                    InfoView info = null;
+                    InfoViewModel ifvm = new InfoViewModel(task, token, tokenSource, "Serial Connection Lost", "Attempting to Reconnect");
 
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        sd = new SerialDisconnectView
+                        info = new InfoView
                         {
                             Owner = Application.Current.MainWindow,
                             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                            DataContext = sdvm
+                            DataContext = ifvm
                         };
 
-                        sd.Show();
+                        info.Show();
                     });
 
-                    var monitor = Task.Run(sdvm.Poll);
+                    var monitor = Task.Run(ifvm.Poll);
                     monitor.Wait();
 
                     if (monitor.Result)
@@ -453,8 +457,8 @@ namespace WpfCommApp
                         // Close the window if the program has successfully re-established communication
                         Application.Current.Dispatcher.Invoke(() =>
                         {
-                            sdvm.UserClosedWindow = false;
-                            sd.Close();
+                            ifvm.UserClosedWindow = false;
+                            info.Close();
                         });
                     }
                     else
@@ -475,7 +479,7 @@ namespace WpfCommApp
 
             // Iterate over each line and extract the voltage, current and kW for each channel and phase of the meter
             string buffer = task.Result;
-            System.Random rand = new System.Random();
+            // System.Random rand = new System.Random();
             foreach (string s in buffer.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries))
             {
                 string[] cols = s.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
@@ -489,8 +493,8 @@ namespace WpfCommApp
                 if (phaseA)
                 {
                     PhaseAText[0][meter] = float.Parse(cols[6]).ToString("0.00");
-                    //if (Meter.ID == "82072130" && meter == 11 && _count++ > 0 && _count - 1 < 3)
-                    //    PhaseAText[0][meter] = (rand.NextDouble() * (12.5 - 12) + 12).ToString("0.00");
+                    // if (Meter.ID == "82072130" && meter == 11 && _count++ > 0 && _count - 1 < 3)
+                    //     PhaseAText[0][meter] = (rand.NextDouble() * (12.5 - 12) + 12).ToString("0.00");
                     float watts = float.Parse(cols[8]);
                     PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
                     double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[9]), 2));
@@ -540,12 +544,9 @@ namespace WpfCommApp
 
                 // if at least one phase and the meter details have been entered mark as complete
                 if (_channelComm && (Meter.Disposition > 0 && !string.IsNullOrEmpty(Meter.Floor) && !string.IsNullOrEmpty(Meter.Location)))
-                {
                     Completed = true;
-                    return;
-                }
-
-                Completed = false;
+                else
+                    Completed = false;
 
                 if (_break)
                     break;
@@ -557,7 +558,7 @@ namespace WpfCommApp
         /// <summary>
         /// Stops the Phase Diagnostic call loop
         /// </summary>
-        private void StopPhaseDiagnostic()
+        private void Stop()
         {
             _break = true;
         }

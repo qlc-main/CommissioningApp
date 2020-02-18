@@ -27,20 +27,21 @@
 
         <TextBlock Margin="10 5" HorizontalAlignment="Center" FontSize="20" Grid.Row="1">
             <Run Text="Current Configuration: " />
-            <Run Text="{Binding Data.Meter.Size, Source={StaticResource proxy}}" />
+            <Run Text="{Binding Data.ChannelSize, Source={StaticResource proxy}, Mode=OneWay}" />
             <Run Text=" x 2" />
         </TextBlock>
-            
-        <TextBlock Margin="10 5" FontSize="20" TextWrapping="Wrap" Grid.Row="2" Grid.RowSpan="4" HorizontalAlignment="Center" TextAlignment="Center"
-                    Text="">
-            <Run Text="Please edit the CT Ratios in the table to the right" />
-            <LineBreak />
-            <Run Text="by clicking on the cell and editing value." />
-            <LineBreak />
-            <LineBreak />
-            <Run Text="Rows that do not have entries for primary and secondary are exempt from commissioning." />
-        </TextBlock>
-            
+
+        <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Center">
+            <TextBlock FontSize="20" Margin="0 15 10 0">Primary Options: </TextBlock>
+            <ComboBox FontSize="20" SelectedValuePath="Content" SelectedValue="{Binding ComboBoxText}" VerticalContentAlignment="Center" Height="40">
+                <ComboBoxItem Content="100"/>
+                <ComboBoxItem Content="200"/>
+                <ComboBoxItem Content="300"/>
+            </ComboBox>
+        </StackPanel>
+
+        <Button Command="{Binding Data.SetPrimary, Source={StaticResource proxy}}" Grid.Row="3" Width="100" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center">Set Primary</Button>
+
         <DataGrid Grid.RowSpan="6" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" SelectionUnit="Cell" 
                     HeadersVisibility="Column" Background="#f2f2f2" RowBackground="white" AlternatingRowBackground="#ffcccb"
                     CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" ItemsSource="{Binding Meter.Channels}">

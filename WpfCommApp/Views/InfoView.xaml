@@ -4,9 +4,15 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="{Binding Title}" Height="150" Width="300" WindowStyle="ToolWindow" Closing="CloseCommand">
+        Title="{Binding Title}" Height="150" MinWidth="300" WindowStyle="ToolWindow" Closing="CloseCommand"
+        SizeToContent="Width" Width="{Binding ElementName=sp, Path=ActualWidth}">
     
-    <StackPanel VerticalAlignment="Center">
-        <TextBlock Margin="60 0 0 0" Text="{Binding WindowText, Mode=OneWay}" />
-    </StackPanel>
+    <Grid Name="sp" VerticalAlignment="Center" HorizontalAlignment="Center">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="20" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="20" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="1" HorizontalAlignment="Left" Text="{Binding WindowText, Mode=OneWay}" />
+    </Grid>
 </Window>

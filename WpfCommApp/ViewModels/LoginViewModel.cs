@@ -18,6 +18,7 @@ namespace WpfCommApp
         private string _email;
         private string _id;
         private string _password;
+        private bool _submitEnabled;
         private string _ticket;
 
         private ICommand _login;
@@ -41,6 +42,8 @@ namespace WpfCommApp
             }
         }
 
+        public string FailedMessage { get; private set; }
+
         public string OperationID
         {
             get { return _id; }
@@ -55,6 +58,19 @@ namespace WpfCommApp
         }
 
         public string Name { get { return "Login"; } }
+
+        public bool SubmitEnabled
+        {
+            get { return _submitEnabled;  }
+            set
+            {
+                if (_submitEnabled != value)
+                {
+                    _submitEnabled = value;
+                    OnPropertyChanged(nameof(SubmitEnabled));
+                }
+            }
+        }
 
         #endregion
 
@@ -77,6 +93,8 @@ namespace WpfCommApp
 
         public LoginViewModel()
         {
+            SubmitEnabled = true;
+            FailedMessage = "";
         }
 
         #endregion
@@ -96,8 +114,12 @@ namespace WpfCommApp
         /// <returns></returns>
         private async Task CreateCRM()
         {
+            SubmitEnabled = false;
             HttpClient client = new HttpClient();
-            string logDir = String.Format("{0}\\Logs", Directory.GetCurrentDirectory());
+            string fileName, sid = null;
+            string toUploadDir = String.Format("{0}\\ToUpload", Directory.GetCurrentDirectory());
+            string logDir = String.Format("{0}\\ErrorLogs", Directory.GetCurrentDirectory());
+            List<string> failedMeters = new List<string>(), successMeters = new List<string>();
             if (!Directory.Exists(logDir))
                 Directory.CreateDirectory(logDir);
 
@@ -106,8 +128,11 @@ namespace WpfCommApp
                 Directory.CreateDirectory(uploadedDir);
 
             // Logs into CRM using provided credentials and saves login token
-            if (!await Authenticate(client))
-                return; // TODO: show error to user that provided credentials are incorrect if login attempt fails
+            if (_ticket == null && !await Authenticate(client))
+            {
+                FailedMessage = "Incorrect credentials provided, please try again!";
+                return;
+            }
 
             // Iterate over each meter in memory and attempt to upload contents to CRM
             foreach (KeyValuePair<string, Meter> kvp in (Application.Current.Properties["meters"] as Dictionary<string, Meter>))
@@ -117,7 +142,7 @@ namespace WpfCommApp
                     continue;
 
                 bool opt = !string.IsNullOrEmpty(_id), edit = false;
-                string query, response, rid, fileName;
+                string query, response, rid;
                 Dictionary<string, string> data;
 
                 // Check if a record already exists with this meter ID if so the current user is editting a record
@@ -130,11 +155,28 @@ namespace WpfCommApp
                     // to find the appropriate information and upload to CRM
                     if (opt) /* operation id provided */
                     {
-                        rid = "";
-                        response = await GetRecord(client, "bghhvi54m", _id);
-                        string sID = GetSiteID(response);
-                        query = string.Format("{{'391'.TV.'{0}'}}AND{{'186'.TV.'{1}'}}", sID, kvp.Key);
+                        if (sid == null)
+                        {
+                            rid = "";
+                            response = await GetRecord(client, "bghhvi54m", _id);
+                            sid = GetSiteID(response);
+
+                            if (sid == "")
+                            {
+                                FailedMessage = "Unable to retrieve Operation from Operation ID";
+                                continue;
+                            }
+                        }
+
+                        query = string.Format("{{'391'.TV.'{0}'}}AND{{'186'.TV.'{1}'}}", sid, kvp.Key);
                         rid = await DoQuery(client, "bghhviw72", query);
+
+                        if (rid == "")
+                        {
+                            FailedMessage = String.Format("Can't find meter: {0} in Devices, continuing...", kvp.Key);
+                            failedMeters.Add(kvp.Key);
+                            continue;
+                        }
 
                         response = await GetRecord(client, "bghhviw72", rid);
                         data = CreateFSData(response, kvp.Value, opt);
@@ -145,6 +187,13 @@ namespace WpfCommApp
                     {
                         query = string.Format("{{'16'.TV.'{0}'}}", kvp.Key);
                         rid = await DoQuery(client, "bgs8pzryj", query);
+
+                        if (rid == "")
+                        {
+                            FailedMessage = String.Format("Can't find meter: {0} in Device Issues, continuing...", kvp.Key);
+                            failedMeters.Add(kvp.Key);
+                            continue;
+                        }
 
                         response = await GetRecord(client, "bgs8pzryj", rid);
                         data = CreateFSData(response, kvp.Value, opt);
@@ -193,7 +242,8 @@ namespace WpfCommApp
                 // If the edit or create record was successful then upload the meter file to CRM
                 if (!string.IsNullOrEmpty(rid))
                 {
-                    await UploadFile(client, "bhfwfquxf", new Tuple<string, string, string, string>("24", kvp.Key + ".txt", rid, String.Format("{0}\\ToUpload\\{1}.txt", Directory.GetCurrentDirectory(), kvp.Key)));
+                    // TODO: Check with Jordon if he still wants me to upload the file
+                    // await UploadFile(client, "bhfwfquxf", new Tuple<string, string, string, string>("24", kvp.Key + ".txt", rid, String.Format("{0}\\ToUpload\\{1}.txt", Directory.GetCurrentDirectory(), kvp.Key)));
                     foreach (Channel c in kvp.Value.Channels)
                     {
                         // Check filters out meter points that have not been commissioned, if this 
@@ -248,9 +298,51 @@ namespace WpfCommApp
                     }
 
                     // If successfully created FS Report, move meter save file but keep it locally just in case it needs to be referenced in the future
-                    File.Move(String.Format("{0}\\ToUpload\\{1}.txt", Directory.GetCurrentDirectory(), kvp.Key), String.Format("{0}\\{1}.txt", uploadedDir, kvp.Key));
+                    File.Move(String.Format("{0}\\{1}.txt", toUploadDir, kvp.Key), String.Format("{0}\\{1}.txt", uploadedDir, kvp.Key));
+                    successMeters.Add(kvp.Key);
                 }
+                else
+                    failedMeters.Add(kvp.Key);
             }
+
+            fileName = String.Format("{0}\\Logs\\UploadLog_{1}.txt", Directory.GetCurrentDirectory(), DateTime.Now.ToString("yyyyMMddHHmmss"));
+            string logMessage = "";
+            string windowMessage = "";
+            if (successMeters.Count > 0) {
+                logMessage = "Successfully uploaded the following meters:\n\t" + String.Join("\n\t", successMeters);
+                windowMessage = successMeters.Count + " Successful";
+            }
+
+            if (failedMeters.Count > 0)
+            {
+                if (logMessage.Length > 0)
+                    logMessage += "\n";
+                logMessage += "Failed to upload the following meters:\n\t" + String.Join("\n\t", failedMeters);
+                if (windowMessage.Length > 0)
+                    windowMessage += ", " + failedMeters.Count + " Failed";
+                else
+                    windowMessage = failedMeters.Count + " Failed";
+            }
+
+            DumpToLog(fileName, "Finished uploading", logMessage);
+
+            InfoView info = null;
+            InfoViewModel ifvm = new InfoViewModel("Upload Process Complete", windowMessage);
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                info = new InfoView
+                {
+                    Owner = Application.Current.MainWindow,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    DataContext = ifvm
+                };
+
+                info.Show();
+            });
+
+            // Enable submit button after process complete
+            SubmitEnabled = true;
         }
 
         /// <summary>
@@ -305,11 +397,15 @@ namespace WpfCommApp
             data["_fid_12"] = DateTime.Today.ToString("MM-dd-yyyy");     // Date that work performed
             data["_fid_13"] = "2";                                       // Duration of work
             data["_fid_16"] = meter.Notes;                               // Comments for meter
+            data["_fid_70"] = meter.Location;                            // Device Location
             data["_fid_85"] = meter.Disposition.ToString();              // Disposition (No Problem Found)
             data["_fid_23"] = meter.FSReturn ? "1" : "0";                // No FS return required
             data["_fid_121"] = meter.OprComplete ? "1" : "0";            // Opr Complete
-            data["_fid_72"] = meter.Location;                            // Device Location
             data["_fid_161"] = meter.Floor;                              // Device Floor
+
+            if (opt)
+                data["_fid_37"] = _id;                                   // Operation Id
+
             data["ticket"] = _ticket;                                    // Authentication ticket
 
             return data;
@@ -394,7 +490,7 @@ namespace WpfCommApp
                 if (lines[i].Contains("<fid>93</fid>"))
                 {
                     string line = lines[i += 3];
-                    return line.Substring(line.IndexOf(">"), line.LastIndexOf("<") - line.IndexOf(">") + 1);
+                    return line.Substring(line.IndexOf(">") + 1, line.LastIndexOf("<") - (line.IndexOf(">") + 1));
                 }
             }
 
@@ -480,7 +576,7 @@ namespace WpfCommApp
                 int count = int.Parse(response.Substring(start, stop - start));
 
                 if (count != 1)
-                    return "";      // error only expected single result received multiple
+                    return "";      // error only expected single result received multiple or none
 
                 response = await client.GetStringAsync(string.Format("https://quadlogic.quickbase.com/db/{0}?a=API_DoQuery&ticket={1}&fmt=structured&includeRids=1&query={2}", db, _ticket, query));
                 start = response.IndexOf("record rid=\"") + 12;

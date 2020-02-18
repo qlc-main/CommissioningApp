@@ -120,7 +120,7 @@ namespace WpfCommApp
             get
             {
                 if (_closeTab == null)
-                    _closeTab = new RelayCommand(p => CloseTab(p as string));
+                    _closeTab = new RelayCommand(p => CloseTab(p as Tuple<string, string>));
 
                 return _closeTab;
             }
@@ -221,20 +221,48 @@ namespace WpfCommApp
         #region Public 
 
         /// <summary>
+        ///
         /// Closes the tab that is associated with the serial port that was recently closed
         /// and removes the serial and meter object from the collections that are hosting them
         /// simultaneously saves the meter object. Modifies collections used to control visible
         /// menu tabs
         /// </summary>
         /// <param name="args"></param>
-        public void CloseTab(Tuple<string, string> args)
+        public void CloseTab(Tuple<string, string> args, bool complete = false)
         {
+            // Close the comm port if the complete arg is true
             var comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
-            comms.Remove(args.Item1);
-            var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
-            meters[args.Item2].Save(string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
-            meters.Remove(args.Item2);
-            _tabs.Remove(_tabs.Where(x => x.MeterSerialNo == args.Item2).First());
+            if (complete)
+                comms[args.Item1].Close();
+
+            // Retrieves the index for the tab in the underlying collection
+            var idx = _tabs.FindIndex(t => t.MeterSerialNo == args.Item2);
+            var tab = _tabs[idx];
+
+            // Do not remove the first tab if there are other tabs open
+            if (_tabs.Where(x => x.Visible == true).Count() > 1 && idx == 0)
+                return;
+
+            // "Close" (Hide) the desired tab
+            tab.Visible = false;
+
+            // If there are no more visible tabs, close the application and save meter data
+            if (_tabs.Where(x => x.Visible == true).Count() == 0)
+            {
+                ShutdownProcedure();
+            }
+            // If the current tab is a meter tab and user is viewing this tab
+            // Shift to the next open tab and save the meter data for this tab
+            else if (CurrentTab == tab)
+            {
+                string id = CurrentTab.MeterSerialNo;
+                CurrentTab = _tabs[idx - 1];
+                var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
+                if (complete)
+                    meters[id].Commissioned = true;
+                meters[id].Save(string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
+            }
+
             ModifyTabs();
         }
 
@@ -257,7 +285,7 @@ namespace WpfCommApp
                 foreach(ContentTabViewModel ct in _tabs)
                 {
                     if (!string.IsNullOrEmpty(ct.MeterSerialNo))
-                        if (com == (ct.Pages[1] as CommissioningViewModel).IDX)
+                        if (com == ct.SerialIdx)
                             return;
                 }
 
@@ -272,15 +300,33 @@ namespace WpfCommApp
         /// <param name="objects">Tuple containing the serial port index and meter serial number</param>
         public void CreateTab(Tuple<string, string> objects)
         {
-            Application.Current.Dispatcher.Invoke(() =>
+            // If the tab does not exist, create one otherwise re-open the tab
+            var tab = _tabs.Where(x => x.SerialIdx == objects.Item1 && x.MeterSerialNo == objects.Item2).FirstOrDefault();
+            if (tab == null)
             {
-                _tabs.Add(new ContentTabViewModel(objects.Item1, objects.Item2));
-                CurrentTab = _tabs.Last();
-                ModifyTabs();
-            });
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    _tabs.Add(new ContentTabViewModel(objects.Item1, objects.Item2));
+                    CurrentTab = _tabs.Last();
+                    ModifyTabs();
+                });
+
+                ForwardEnabled = false;
+            }
+            else
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    tab.Visible = true;
+                    CurrentTab = tab;
+                    ModifyTabs();
+                });
+
+                if (CurrentTab.CurrentPage.Completed)
+                    ForwardEnabled = true;
+            }
 
             BackwardEnabled = true;
-            ForwardEnabled = false;
         }
 
         /// <summary>
@@ -290,7 +336,7 @@ namespace WpfCommApp
         public async Task SwitchMeters()
         {
             // Retrieves the serial number of the meter currently attached to the serial port
-            string serialIdx = (CurrentTab.CurrentPage as CommissioningViewModel).IDX;
+            string serialIdx = CurrentTab.SerialIdx;
             string currSerialNo = Serial[serialIdx].SerialNo;
             var tabs = _tabs.Where(x => x.MeterSerialNo == currSerialNo);
             CurrentTab.Visible = false;
@@ -324,9 +370,8 @@ namespace WpfCommApp
                 string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
                 if (lines[2].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1].StartsWith("593"))
                 {
-                    m.Size = 12;
                     string[] serials = Serial[serialIdx].GetChildSerial().Split(',');
-                    for (int i = 0; i < m.Size; i++)
+                    for (int i = 0; i < 12; i++)
                     {
                         m.Channels.Add(new Channel(i + 1));
                         m.Channels[i].Serial = serials[i];
@@ -376,46 +421,6 @@ namespace WpfCommApp
                     BackwardEnabled = false;
                 }
             }
-        }
-
-        /// <summary>
-        /// Closes a tab given the title string for that tab
-        /// </summary>
-        /// <param name="p"></param>
-        private void CloseTab(string p, bool complete = false)
-        {
-            // Retrieves the index for the tab in the underlying collection
-            int idx = _tabs.Select((value, index) => new { value, index })
-                        .Where(x => x.value.Name == p && x.value.Visible == true)
-                        .Select(x => x.index)
-                        .Take(1)
-                        .ElementAt(0);
-
-            // Do not remove the first tab if there are other tabs open
-            if (_tabs.Where(x => x.Visible == true).Count() > 1 && idx == 0)
-                return;
-
-            // "Close" (Hide) the desired tab
-            _tabs[idx].Visible = false;
-
-            // If there are no more visible tabs, close the application and save meter data
-            if (_tabs.Where(x => x.Visible == true).Count() == 0)
-            {
-                ShutdownProcedure();
-            }
-            // If the current tab is a meter tab and user is viewing this tab
-            // Shift to the next open tab and then 
-            else if (CurrentTab == _tabs[idx])
-            {
-                string id = CurrentTab.MeterSerialNo;
-                CurrentTab = _tabs[idx - 1];
-                var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
-                if (complete)
-                    meters[id].Commissioned = true;
-                meters[id].Save(string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
-            }
-
-            ModifyTabs();
         }
 
         /// <summary>
@@ -477,23 +482,7 @@ namespace WpfCommApp
                 else
                 {
                     // Close this tab if we are finished commissioning this meter.
-                    CloseTab(CurrentTab.Name, true);
-
-                    if (_tabs.IndexOf(CurrentTab) == 0)
-                    {
-                        pages = CurrentTab.Pages;
-                        current = CurrentTab.CurrentPage;
-                        idx = pages.IndexOf(current);
-
-                        if (idx < pages.Count - 1)
-                        {
-                            CurrentTab.CurrentPage = pages[idx + 1];
-                            if (CurrentTab.CurrentPage.Completed)
-                                ForwardEnabled = true;
-                            else
-                                ForwardEnabled = false;
-                        }
-                    }
+                    CloseTab(new Tuple<string, string>(CurrentTab.SerialIdx, CurrentTab.MeterSerialNo), true);
                 }
             }
 
@@ -566,7 +555,7 @@ namespace WpfCommApp
 
             m.Floor = split[1];
             m.Location = split[2];
-            m.Size = int.Parse(split[3]);
+            //m.Size = int.Parse(split[3]);
             m.PLCVerified = split[4] == "Yes" ? true : false;
             m.Disposition = int.Parse(split[5]);
             m.FSReturn = split[6] == "1" ? true : false;
@@ -603,7 +592,7 @@ namespace WpfCommApp
             }
 
             sr.Close();
-            m.Size = m.Channels.Count;
+            //m.Size = m.Channels.Count;
             meters.Add(m.ID, m);
         }
 

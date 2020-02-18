@@ -44,7 +44,7 @@
             <Run Text="1. Connect USB Device(s) now" />
             <LineBreak />
             <LineBreak />
-            <Run Text="2. Click on the COM Ports that appear when you clik on button next to com" />
+            <Run Text="2. Click on the COM Ports that appear when you click on button next to com" />
             <LineBreak />
             <Run Text=" in order to connect to meter(s)." />
         </TextBlock>
@@ -61,7 +61,7 @@
                         </StackPanel>
                     </Button.Content>
                     <Button.ContextMenu>
-                        <ContextMenu IsEnabled="False" ItemsSource="{Binding Source={StaticResource cvs}}">
+                        <ContextMenu IsEnabled="False" ItemsSource="{Binding Source={StaticResource cvs}, Mode=OneWay}">
                             <ContextMenu.ItemTemplate>
                                 <DataTemplate>
                                     <MenuItem Foreground="Snow" Header="{Binding Name}" 

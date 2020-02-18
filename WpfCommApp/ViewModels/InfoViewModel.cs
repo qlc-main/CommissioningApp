@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Windows.Input;
+using System.Windows;
 
 namespace WpfCommApp
 {
@@ -21,12 +22,13 @@ namespace WpfCommApp
 
         private CancellationToken _ct;
         private CancellationTokenSource _cts;
-        private Task _task;
         private InfoView _view;
 
         #endregion
 
         #region Properties
+
+        public Task Task { get; }
 
         public string Title { get; }
 
@@ -87,43 +89,64 @@ namespace WpfCommApp
             _cts = cts;
             _run = true;
             _startText = text;
-            _task = task;
+            Task = task;
             Title = title;
             _userClosedWindow = true;
         }
 
+        public InfoViewModel(string title, string text)
+        {
+            _run = true;
+            Title = title;
+            _userClosedWindow = true;
+            WindowText = text;
+        }
+
         #endregion
-        
+
         #region Methods
 
         public async Task<bool> Poll()
         {
-            int i = 0;
-            try
+            if (Task == null)
             {
-                do
-                {
-                    WindowText = _startText + new String('.', i++ % 4);
-                }
-                while (!_task.Wait(1000) && _run);
-            }
-            finally
-            {
-                _cts.Dispose();
-            }
+                while (_run) { }
 
-            if (!_run)
-            {
-                _run = true;
+                if (!_run)
+                    _run = true;
+
                 return false;
             }
             else
-                return true;
+            {
+                int i = 0;
+                try
+                {
+                    do
+                    {
+                        WindowText = _startText + new String('.', i++ % 4);
+                    }
+                    while (!Task.Wait(1000) && _run);
+                }
+                finally
+                {
+                    _cts.Dispose();
+                }
+
+                if (!_run)
+                {
+                    _run = true;
+                    return false;
+                }
+                else
+                    return true;
+            }
         }
 
         public void StopPolling()
         {
-            _cts.Cancel();
+            if (_cts != null)
+                _cts.Cancel();
             _run = false;
         }
 

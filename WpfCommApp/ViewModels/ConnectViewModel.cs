@@ -169,12 +169,32 @@ namespace WpfCommApp
         /// <summary>
         /// Code used to create/open meter object and create a tab for this item
         /// </summary>
-        public void CreateNewMeter()
+        public string CreateNewMeter()
         {
             Dictionary<string, Meter> meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
 
             // Logs into meter and retrieves it's ID
             _id = _serial.SetupSerial(_comPort);
+            if (_id == "")
+            {
+                InfoView info = null;
+                InfoViewModel ifvm = new InfoViewModel("Unable to Connect", "COM Port already open, close port or choose another COM...");
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    info = new InfoView
+                    {
+                        Owner = Application.Current.MainWindow,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        DataContext = ifvm
+                    };
+
+                    info.Show();
+                });
+
+                return null;
+            }
+
             var query = ComPorts.Select((value, index) => new { value, index })
                     .Where(x => x.value.Name == _comPort)
                     .Select(x => x.index)
@@ -191,19 +211,30 @@ namespace WpfCommApp
                 // Sets the size of the meter based on the type/version of meter connected
                 string version = _serial.GetVersion();
                 string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
-                if (lines[2].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1].StartsWith("593"))
+                if (lines[1].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1] == "59330354")
                 {
-                    meter.Size = 12;
-
+                    _serial.NewFirmware = true;
                     // Retrieves child serial numbers and assigns them to respective channel
                     string[] serials = _serial.GetChildSerial().Split(',');
-                    for (int i = 0; i < meter.Size; i++)
+                    for (int i = 0; i < 12; i++)
+                    {
+                        meter.Channels.Add(new Channel(i + 1));
+                        meter.Channels[i].Serial = serials[i];
+                    }
+                }
+                else if (lines[2].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1].StartsWith("593"))
+                {
+                    // Retrieves child serial numbers and assigns them to respective channel
+                    string[] serials = _serial.GetChildSerial().Split(',');
+                    for (int i = 0; i < 12; i++)
                     {
                         meter.Channels.Add(new Channel(i + 1));
                         meter.Channels[i].Serial = serials[i];
                     }
                 }
             }
+
+            return _id;
         }
 
         #endregion
@@ -241,20 +272,27 @@ namespace WpfCommApp
             {
                 IsBusy = true;
                 var comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
+                var query = ComPorts.Select((value, index) => new { value, index })
+                    .Where(x => x.value.Name == _comPort)
+                    .Select(x => x.index)
+                    .Take(1);
+                var idx = query.ElementAt(0);
 
                 // Closes the port only if it is currently open
-                if (comms[_comPort].IsOpen)
+                if (ComPorts[idx].Used)
                 {
-                    comms[_comPort].Close();
-
                     // Send message to close the tab attached that is attached to the serial port that is being closed
                     (Application.Current.Properties["MessageBus"] as MessageBus)
                         .Publish(new MessageCenter("closeTab", new Tuple<string, string>(_comPort, comms[_comPort].SerialNo)));
+
+                    comms.Remove(_comPort);
+                    ComPorts[idx].Used = false;
                 }
             }
             finally
             {
                 IsBusy = false;
+                COMPORT = "          ";
             }
         }
 
@@ -342,9 +380,18 @@ namespace WpfCommApp
                 _serial = comms[COMPORT];
             }
             else
-                return;
+            {
+                _serial = comms[COMPORT];
+                if (_serial.IsOpen)
+                    return;
+            }
 
-            CreateNewMeter();
+            if (CreateNewMeter() == null)
+            {
+                IsBusy = false;
+                Completed = false;
+                return;
+            }
 
             Completed = true;
 
@@ -352,6 +399,7 @@ namespace WpfCommApp
             (Application.Current.Properties["MessageBus"] as MessageBus)
                 .Publish(new MessageCenter("newTab", new Tuple<string, string>(_comPort, _id)));
         }
+
         #endregion
 
         #endregion

@@ -62,7 +62,7 @@
                         <TextBlock>
                             <Run Text="{Binding Name, Mode=OneWay}" />
                             <Hyperlink Command="{Binding Data.CloseCommand, Source={StaticResource Context}}"
-                                       CommandParameter="{Binding Name}">X</Hyperlink>
+                                       CommandParameter="{Binding DataTuple}">X</Hyperlink>
                         </TextBlock>
                     </DataTemplate>
                 </TabControl.ItemTemplate>

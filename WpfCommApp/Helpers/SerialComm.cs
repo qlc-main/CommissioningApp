@@ -37,6 +37,8 @@ namespace WpfCommApp
         /// </summary>
         public string COM { get; private set; }
 
+        public bool NewFirmware { get; set; }
+
         public string SerialBuffer { get; private set; }
 
         /// <summary>
@@ -51,6 +53,7 @@ namespace WpfCommApp
         public SerialComm()
         {
             // _count = 0;
+            NewFirmware = false;
         }
 
         #endregion
@@ -89,9 +92,31 @@ namespace WpfCommApp
         /// <returns>Comma separated list of ordered child serial numbers</returns>
         public string GetChildSerial()
         {
-            // Issues Phase Diagnostic call (child serial numbers are returned in this call) 
-            // Parses the returned string and creates a new comma separated string of the serial numbers
-            string buffer = PhaseDiagnostic(new CancellationToken());
+            // Initiates phase diagnostic command and waits for response
+            WriteToSerial("mscan -Gp");
+            int failed = 0;
+            while (_serial.BytesToRead == 0)
+            {
+                // If response is not received after about 3 seconds then assume
+                // that probe was disconnected clear buffers, exit function and
+                // try again
+                if (++failed % 10 == 0)
+                {
+                    _serial.DiscardInBuffer();
+                    _serial.DiscardOutBuffer();
+                    return "failed";
+                }
+
+                Thread.Sleep(250);
+            }
+
+            // If Phase Diagnostic command is successful, store the contents within the buffer and then return buffer
+            // for further use
+            ReadBuffer(true);
+#if DEBUG
+            Console.Write(SerialBuffer + ' ');
+#endif
+            string buffer = SerialBuffer;
             string ret = "";
             foreach(string line in buffer.Split(new char[] { '\n', '\r'}, StringSplitOptions.RemoveEmptyEntries))
             {
@@ -200,12 +225,18 @@ namespace WpfCommApp
             string newSerial = "";
             if (string.IsNullOrEmpty(SerialBuffer))
             {
+                string oldSerialNo = SerialNo;
                 if (Login())
-                    return "switch";
+                {
+                    if (oldSerialNo != SerialNo)
+                        return "switch";
+                    else
+                        newSerial = SerialNo;
+                }
                 else
                     return "failed";
             }
-            else if (SerialBuffer.Contains("attn -d"))
+            else
             {
                 foreach (string line in SerialBuffer.Split(new char[1] { '\n' }))
                 {
@@ -219,45 +250,69 @@ namespace WpfCommApp
 
             if (string.IsNullOrEmpty(newSerial))
             {
-                Console.WriteLine("cops and robbers");
+                Console.WriteLine("Unable to get meter serial number");
                 return "failings";
             }
 
-            // if ((_count++ > 0 && _count - 1 < 6) || _count > 15)
-            //     newSerial = "82072117";
-
             // New Serial number so propagate message up to switch meter
-            if (SerialNo != newSerial)
+            else if (SerialNo != newSerial)
             {
                 SerialNo = newSerial;
                 return "switch";
             }
 
             // Initiates phase diagnostic command and waits for response
-            WriteToSerial("mscan -Gp");
-            int failed = 0;
-            while (_serial.BytesToRead == 0)
+            if (NewFirmware)
             {
-                // If response is not received after about 3 seconds then assume
-                // that probe was disconnected clear buffers, exit function and
-                // try again
-                if (++failed % 10 == 0)
+                string totalBuffer = "";
+                foreach (int i in System.Linq.Enumerable.Range(0, 12))
                 {
-                    _serial.DiscardInBuffer();
-                    _serial.DiscardOutBuffer();
-                    return "failed";
+                    WriteToSerial(String.Format("md -p -#2 -@{0}", i + 32));
+                    int failed = 0;
+                    while (_serial.BytesToRead == 0)
+                    {
+                        if (++failed % 10 == 0)
+                        {
+                            _serial.DiscardInBuffer();
+                            _serial.DiscardOutBuffer();
+                            return "failed";
+                        }
+                        Thread.Sleep(50);
+                    }
+
+                    ReadBuffer(true);
+                    totalBuffer += SerialBuffer;
                 }
 
-                // Cancels current function execution because user requested to end execution
-                if (token.IsCancellationRequested)
-                    return "";
-
-                Thread.Sleep(250);
+                SerialBuffer = totalBuffer;
             }
+            else
+            {
+                WriteToSerial("mscan -Gp");
+                int failed = 0;
+                while (_serial.BytesToRead == 0)
+                {
+                    // If response is not received after about 3 seconds then assume
+                    // that probe was disconnected clear buffers, exit function and
+                    // try again
+                    if (++failed % 10 == 0)
+                    {
+                        _serial.DiscardInBuffer();
+                        _serial.DiscardOutBuffer();
+                        return "failed";
+                    }
 
-            // If Phase Diagnostic command is successful, store the contents within the buffer and then return buffer
-            // for further use
-            ReadBuffer(true);
+                    // Cancels current function execution because user requested to end execution
+                    if (token.IsCancellationRequested)
+                        return "";
+
+                    Thread.Sleep(250);
+                }
+
+                // If Phase Diagnostic command is successful, store the contents within the buffer and then return buffer
+                // for further use
+                ReadBuffer(true);
+            }
 #if DEBUG
             Console.Write(SerialBuffer + ' ');
 #endif
@@ -273,9 +328,15 @@ namespace WpfCommApp
         {
             COM = com;
             _serial = new SerialPort(com, 19200);
-            _serial.Open();
-
-            Login();
+            try
+            {
+                _serial.Open();
+                Login();
+            }
+            catch (Exception e)
+            {
+                SerialNo = "";
+            }
 
             return SerialNo;
         }

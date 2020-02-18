@@ -52,7 +52,7 @@ namespace WpfCommApp
                 else if (message.Command == "newTab")
                     m.CreateTab(message.Args as Tuple<string, string>);
                 else if (message.Command == "closeTab")
-                    m.CloseTab(message.Args as Tuple<string, string>);
+                    m.CloseTab(message.Args as Tuple<string, string>, true);
                 else if (message.Command == "switchMeters")
                     Task.Run(m.SwitchMeters);
                 else if (message.Command == "newMeter")

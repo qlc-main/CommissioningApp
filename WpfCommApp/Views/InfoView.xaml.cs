@@ -26,11 +26,9 @@ namespace WpfCommApp
 
         private void CloseCommand(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            var sdvm = (this.DataContext as InfoViewModel);
-            if (sdvm.UserClosedWindow)
-            {
-                sdvm.StopPolling();
-            }
+            var ifvm = (this.DataContext as InfoViewModel);
+            if (ifvm.UserClosedWindow)
+                ifvm.StopPolling();
         }
     }
 }

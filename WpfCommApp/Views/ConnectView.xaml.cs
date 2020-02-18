@@ -23,7 +23,7 @@ namespace WpfCommApp
                     "SELECT * FROM Win32_PnPEntity WHERE ClassGuid=\"{4d36e978-e325-11ce-bfc1-08002be10318}\"").Get();
             
             var vm = (DataContext as ConnectViewModel);
-            vm.ComPorts.Clear();
+            //vm.ComPorts.Clear();
             foreach (ManagementObject m in wmi)
             {
                 string com = m["Name"] as string;

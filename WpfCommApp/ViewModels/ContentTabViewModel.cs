@@ -51,6 +51,10 @@ namespace WpfCommApp
 
         public IPageViewModel Previous { get; private set; }
 
+        public string SerialIdx;
+
+        public Tuple<string, string> DataTuple { get { return new Tuple<string, string>(SerialIdx, MeterSerialNo); } }
+
         public bool Visible
         {
             get { return _visible; }
@@ -59,8 +63,6 @@ namespace WpfCommApp
                 if (_visible != value)
                 {
                     _visible = value;
-                    if (!_visible)
-                        CurrentPage = null;
                     OnPropertyChanged(nameof(Visible));
                 }
             }
@@ -97,6 +99,7 @@ namespace WpfCommApp
         public ContentTabViewModel(string serialIdx, string serial)
         {
             MeterSerialNo = serial;
+            SerialIdx = serialIdx;
             Pages = new List<IPageViewModel>();
             Pages.Add(new ConfigurationViewModel(serial));
             Pages.Add(new CommissioningViewModel(serial, serialIdx));

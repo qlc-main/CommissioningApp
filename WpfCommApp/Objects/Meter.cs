@@ -22,7 +22,6 @@ namespace WpfCommApp
         private bool _oprComplete;
         private string _plcReason;
         private bool _plcVerified;
-        private int _size;
         private bool? _viewing;
 
         private ObservableCollection<Channel> _channels;
@@ -170,8 +169,15 @@ namespace WpfCommApp
 
         public int Size
         {
-            get { return _size; }
-            set { if (_size != value) { _size = value; OnPropertyChanged(nameof(Size)); } }
+            get
+            {
+                int total = 0;
+                foreach (Channel c in Channels)
+                    if (c.CTType != "" || c.Primary != "" || c.Secondary != "")
+                        total++;
+
+                return total;
+            }
         }
 
         public bool? Viewing
@@ -217,7 +223,7 @@ namespace WpfCommApp
 
             StreamWriter sw = new StreamWriter(string.Format("{0}//{1}.txt", dir, _id));
             sw.WriteLine("S/N,Floor,Location,Size,PLC Verified,Disposition,FS Return,Opr Complete,Commissioned");
-            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8}", _id, _floor, _location, _size, _plcVerified ? "Yes" : "No",
+            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8}", _id, _floor, _location, Size, _plcVerified ? "Yes" : "No",
                 _disposition, _fsReturn ? "1" : "0", _oprComplete ? "1" : "0", _commissioned ? "1" : "0"));
             sw.WriteLine("CT,Serial,Apartment,C/B#,CT Type,Primary,Secondary,Multiplier,Commissioned,Forced,Reason,Notes");
             foreach (Channel c in Channels)

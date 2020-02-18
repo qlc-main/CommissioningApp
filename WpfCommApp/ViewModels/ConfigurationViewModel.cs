@@ -15,10 +15,13 @@ namespace WpfCommApp
         #region Fields
 
         private bool _break;
+        private int _channelSize;
+        private string _comboBoxText;
         private bool _completed;
         private string _id;
 
         private ICommand _notCommissioned;
+        private ICommand _setPrimary;
         private ICommand _start;
         private ICommand _stop;
 
@@ -27,6 +30,32 @@ namespace WpfCommApp
         #endregion
 
         #region Properties
+
+        public int ChannelSize
+        {
+            get { return _channelSize; }
+            set
+            {
+                if (_channelSize != value)
+                {
+                    _channelSize = value;
+                    OnPropertyChanged(nameof(ChannelSize));
+                }
+            }
+        }
+
+        public string ComboBoxText
+        {
+            get { return _comboBoxText; }
+            set
+            {
+                if (_comboBoxText != value)
+                {
+                    _comboBoxText = value;
+                    OnPropertyChanged(nameof(ComboBoxText));
+                }
+            }
+        }
 
         public bool Completed {
             get { return _completed; }
@@ -81,6 +110,17 @@ namespace WpfCommApp
             }
         }
 
+        public ICommand SetPrimary
+        {
+            get
+            {
+                if (_setPrimary == null)
+                    _setPrimary = new RelayCommand(p => PrimaryConfiguration());
+
+                return _setPrimary;
+            }
+        }
+
         public ICommand StartAsync
         {
             get
@@ -114,7 +154,9 @@ namespace WpfCommApp
         public ConfigurationViewModel(string id)
         {
             _id = id;
+            _comboBoxText = "100";
             Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
+            ChannelSize = Meter.Size;
             CTTypes = (Application.Current.Properties["cttypes"] as string[]);
         }
 
@@ -127,6 +169,15 @@ namespace WpfCommApp
         #endregion
 
         #region Private
+
+        private void PrimaryConfiguration()
+        {
+            foreach(Channel c in Meter.Channels)
+            {
+                if (c.CTType != "" || c.Secondary != "")
+                    c.Primary = ComboBoxText;
+            }
+        }
 
         private void Start()
         {
@@ -148,6 +199,12 @@ namespace WpfCommApp
             _meter.Channels[id - 1].Primary = "";
             _meter.Channels[id - 1].Secondary = "";
             _meter.Channels[id - 1].CTType = "";
+
+            int total = 0;
+            foreach (Channel c in Meter.Channels)
+                if (c.CTType != "" || c.Primary != "" || c.Secondary != "")
+                    total++;
+            ChannelSize = total;
             OnPropertyChanged(nameof(Meter));
         }
 

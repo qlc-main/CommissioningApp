@@ -16,8 +16,6 @@ namespace WpfCommApp
 
         #region Fields
 
-        // private int _count;
-
         private bool _break;
         private bool _channelComm;
         private bool[][] _checker;
@@ -64,12 +62,6 @@ namespace WpfCommApp
         }
 
         public Dictionary<string, int> Disposition { get; }
-
-        public string IDX
-        {
-            get { return _idx; }
-            set { if (_idx != value) _idx = value; }
-        }
 
         public Meter Meter
         {
@@ -382,7 +374,7 @@ namespace WpfCommApp
                 // continue with discovering whether or not there was a large enough
                 // change
                 var retVal = Process();
-                if (retVal.Contains("$lot"))
+                if (retVal.Contains("Amps"))
                     Detection();
                 // Switches the connected meter object to this serial comm
                 else if (retVal == "switch")
@@ -427,8 +419,9 @@ namespace WpfCommApp
             var task = Task.Factory.StartNew(() => _serial.PhaseDiagnostic(token), token);
 
             // Waits 5 seconds for Phase Diagnostic call to finish execution if not then display
-            // modal to user and attempt to reconnect 
-            if (!task.Wait(5000, token))
+            // modal to user and attempt to reconnect
+            int timeout = _serial.NewFirmware ? 7000 : 5000;
+            if (!task.Wait(timeout, token))
             {
                 // Create thread that launches modal window for user and continues to poll
                 // original process to determine if it has completed
@@ -479,40 +472,70 @@ namespace WpfCommApp
 
             // Iterate over each line and extract the voltage, current and kW for each channel and phase of the meter
             string buffer = task.Result;
-            // System.Random rand = new System.Random();
+            int meter = 0;
+            bool phaseA = true;
             foreach (string s in buffer.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries))
             {
                 string[] cols = s.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
 
                 // if not data row continue to next line
-                if (cols.Length != 10 || s.Contains("$lot"))
+                if (s.Contains("Amps") || (!_serial.NewFirmware && cols.Length != 10) || (_serial.NewFirmware && cols.Length != 9))
                     continue;
 
-                int meter = Convert.ToInt32(cols[0]) - 32;
-                bool phaseA = cols[3] == "1" ? true : false;
-                if (phaseA)
+                if (!_serial.NewFirmware)
                 {
-                    PhaseAText[0][meter] = float.Parse(cols[6]).ToString("0.00");
-                    // if (Meter.ID == "82072130" && meter == 11 && _count++ > 0 && _count - 1 < 3)
-                    //     PhaseAText[0][meter] = (rand.NextDouble() * (12.5 - 12) + 12).ToString("0.00");
-                    float watts = float.Parse(cols[8]);
-                    PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
-                    double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[9]), 2));
-                    if (double.IsNaN(temp))
-                        PhaseAText[2][meter] = "--";
+                    meter = Convert.ToInt32(cols[0]) - 32;
+                    phaseA = cols[3] == "1" ? true : false;
+                    if (phaseA)
+                    {
+                        PhaseAText[0][meter] = float.Parse(cols[6]).ToString("0.00");
+                        float watts = float.Parse(cols[8]);
+                        PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
+                        double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[9]), 2));
+                        if (double.IsNaN(temp))
+                            PhaseAText[2][meter] = "--";
+                        else
+                            PhaseAText[2][meter] = temp.ToString("0.00");
+                    }
                     else
-                        PhaseAText[2][meter] = temp.ToString("0.00");
+                    {
+                        PhaseBText[0][meter] = float.Parse(cols[6]).ToString("0.00");
+                        float watts = float.Parse(cols[8]);
+                        PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
+                        double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[9]), 2));
+                        if (double.IsNaN(temp))
+                            PhaseBText[2][meter] = "--";
+                        else
+                            PhaseBText[2][meter] = temp.ToString("0.00");
+                    }
                 }
                 else
                 {
-                    PhaseBText[0][meter] = float.Parse(cols[6]).ToString("0.00");
-                    float watts = float.Parse(cols[8]);
-                    PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
-                    double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[9]), 2));
-                    if (double.IsNaN(temp))
-                        PhaseBText[2][meter] = "--";
+                    phaseA = cols[0] == "1" ? true : false;
+                    if (phaseA)
+                    {
+                        PhaseAText[0][meter] = float.Parse(cols[3]).ToString("0.00");
+                        float watts = float.Parse(cols[5]);
+                        PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
+                        double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[6]), 2));
+                        if (double.IsNaN(temp))
+                            PhaseAText[2][meter] = "--";
+                        else
+                            PhaseAText[2][meter] = temp.ToString("0.00");
+                    }
                     else
-                        PhaseBText[2][meter] = temp.ToString("0.00");
+                    {
+                        PhaseBText[0][meter] = float.Parse(cols[3]).ToString("0.00");
+                        float watts = float.Parse(cols[5]);
+                        PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
+                        double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[6]), 2));
+                        if (double.IsNaN(temp))
+                            PhaseBText[2][meter] = "--";
+                        else
+                            PhaseBText[2][meter] = temp.ToString("0.00");
+
+                        meter++;
+                    }
                 }
             }
 

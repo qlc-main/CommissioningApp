@@ -37,6 +37,8 @@ namespace WpfCommApp
 
         #region Properties
 
+        public int LedControlHeight { get; set; }
+
         public bool Completed
         {
             get { return _completed; }
@@ -62,6 +64,8 @@ namespace WpfCommApp
         }
 
         public Dictionary<string, int> Disposition { get; }
+
+        public int FontSize { get; set; }
 
         public Meter Meter
         {
@@ -136,6 +140,8 @@ namespace WpfCommApp
             _idx = idx;
             Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
             Disposition = (Application.Current.Properties["dispositions"] as Dictionary<string, int>);
+            FontSize = 17;
+            LedControlHeight = 22;
 
             // _count = 0;
         }
@@ -566,7 +572,7 @@ namespace WpfCommApp
                 }
 
                 // if at least one phase and the meter details have been entered mark as complete
-                if (_channelComm && (Meter.Disposition > 0 && !string.IsNullOrEmpty(Meter.Floor) && !string.IsNullOrEmpty(Meter.Location)))
+                if (_channelComm && Meter.Disposition > 0 && !string.IsNullOrEmpty(Meter.Floor) && !string.IsNullOrEmpty(Meter.Location) && !string.IsNullOrEmpty(Meter.OperationID))
                     Completed = true;
                 else
                     Completed = false;

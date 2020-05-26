@@ -19,6 +19,7 @@ namespace WpfCommApp
         private string _id;
         private string _location;
         private string _notes;
+        private string _operationID;
         private bool _oprComplete;
         private string _plcReason;
         private bool _plcVerified;
@@ -128,6 +129,19 @@ namespace WpfCommApp
             }
         }
 
+        public string OperationID
+        {
+            get { return _operationID; }
+            set
+            {
+                if (_operationID != value)
+                {
+                    _operationID = value;
+                    OnPropertyChanged(nameof(OperationID));
+                }
+            }
+        }
+
         public bool OprComplete
         {
             get { return _oprComplete; }
@@ -222,9 +236,9 @@ namespace WpfCommApp
                 Directory.CreateDirectory(dir);
 
             StreamWriter sw = new StreamWriter(string.Format("{0}//{1}.txt", dir, _id));
-            sw.WriteLine("S/N,Floor,Location,Size,PLC Verified,Disposition,FS Return,Opr Complete,Commissioned");
-            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8}", _id, _floor, _location, Size, _plcVerified ? "Yes" : "No",
-                _disposition, _fsReturn ? "1" : "0", _oprComplete ? "1" : "0", _commissioned ? "1" : "0"));
+            sw.WriteLine("S/N,Floor,Location,Size,PLC Verified,Disposition,FS Return,Opr Complete,Commissioned,Operation ID");
+            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9}", _id, _floor, _location, Size, _plcVerified ? "Yes" : "No",
+                _disposition, _fsReturn ? "1" : "0", _oprComplete ? "1" : "0", _commissioned ? "1" : "0", _operationID));
             sw.WriteLine("CT,Serial,Apartment,C/B#,CT Type,Primary,Secondary,Multiplier,Commissioned,Forced,Reason,Notes");
             foreach (Channel c in Channels)
                 c.Save(sw);

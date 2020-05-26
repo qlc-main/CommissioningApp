@@ -59,7 +59,8 @@
         <DataGrid Margin="10" HorizontalAlignment="Center" VerticalAlignment="Top" SelectionUnit="Cell" 
                     HeadersVisibility="Column" Background="#f2f2f2" RowBackground="white" AlternatingRowBackground="#ffcccb" 
                     CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" 
-                    ItemsSource="{Binding Meter.Channels}" AlternationCount="2" >
+                    ItemsSource="{Binding Meter.Channels}" AlternationCount="2" FontSize="{Binding FontSize}"
+                    SizeChanged="DataGrid_SizeChanged">
 
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Meter" Width="Auto" ElementStyle="{StaticResource center}" Binding="{Binding ID, Mode=OneWay}"
@@ -98,7 +99,7 @@
                                         CellStyle="{StaticResource DisablePhase1Cell}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Yellow" 
+                            <local:LedControl Height="{Binding Data.LedControlHeight, Source={StaticResource proxy}}" IsThreeState="True" IsEnabled="True" OffColor="Yellow" 
                                               HorizontalAlignment="Center" 
                                               IsChecked="{Binding Phase1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </DataTemplate>
@@ -109,7 +110,7 @@
                                         CellStyle="{StaticResource DisablePhase2Cell}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <local:LedControl Height="18" IsThreeState="True" IsEnabled="True" OffColor="Yellow" 
+                            <local:LedControl Height="{Binding Data.LedControlHeight, Source={StaticResource proxy}}" IsThreeState="True" IsEnabled="True" OffColor="Yellow" 
                                               HorizontalAlignment="Center"
                                               IsChecked="{Binding Phase2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </DataTemplate>
@@ -238,6 +239,6 @@
                 </StackPanel>
             </DockPanel>
         </GroupBox>
-        
+
     </Grid>
 </UserControl>

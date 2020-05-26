@@ -11,44 +11,44 @@
         <Grid.Resources>
             <local:BindingProxy x:Key="proxy" Data="{Binding }" />
         </Grid.Resources>
-            
-        <Grid.RowDefinitions>
-            <RowDefinition Height="40" />   <!-- This row will be used to choose configuration 12x2, 4x3, etc -->
-            <RowDefinition Height="40" />   <!-- This row will be used to choose configuration 12x2, 4x3, etc -->
-            <RowDefinition Height="40" />   <!-- This row will be used to choose configuration 12x2, 4x3, etc -->
-            <RowDefinition Height="40" />   <!-- spacer row -->
-            <RowDefinition Height="40" />   <!-- this row will be used to set configuration and thus modify the data table -->
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <TextBlock Margin="10 5" HorizontalAlignment="Center" FontSize="20" Grid.Row="1">
-            <Run Text="Current Configuration: " />
-            <Run Text="{Binding Data.ChannelSize, Source={StaticResource proxy}, Mode=OneWay}" />
-            <Run Text=" x 2" />
-        </TextBlock>
+        <StackPanel Orientation="Vertical" VerticalAlignment="Center" Grid.Column="0">
+            <TextBlock Margin="10 5" HorizontalAlignment="Center" FontSize="20">
+                <Run Text="Current Configuration: " />
+                <Run Text="{Binding Data.ChannelSize, Source={StaticResource proxy}, Mode=OneWay}" />
+                <Run Text=" x 2" />
+            </TextBlock>
 
-        <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Center">
-            <TextBlock FontSize="20" Margin="0 15 10 0">Primary Options: </TextBlock>
-            <ComboBox FontSize="20" SelectedValuePath="Content" SelectedValue="{Binding ComboBoxText}" VerticalContentAlignment="Center" Height="40">
-                <ComboBoxItem Content="100"/>
-                <ComboBoxItem Content="200"/>
-                <ComboBoxItem Content="300"/>
-            </ComboBox>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock FontSize="20" Margin="0 25 10 0">Primary Options: </TextBlock>
+                <ComboBox FontSize="20" SelectedValuePath="Content" Height="40"
+                          SelectedValue="{Binding ComboBoxText}" VerticalContentAlignment="Center"
+                          Margin="0 20 0 0">
+                    <ComboBoxItem Content="100"/>
+                    <ComboBoxItem Content="200"/>
+                    <ComboBoxItem Content="300"/>
+                </ComboBox>
+            </StackPanel>
+
+            <Button Command="{Binding Data.SetPrimary, Source={StaticResource proxy}}" Width="100"
+                    Height="40" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Margin="0 20 0 0">Set Primary</Button>
+
         </StackPanel>
-
-        <Button Command="{Binding Data.SetPrimary, Source={StaticResource proxy}}" Grid.Row="3" Width="100" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center">Set Primary</Button>
 
         <DataGrid Grid.RowSpan="6" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" SelectionUnit="Cell" 
                     HeadersVisibility="Column" Background="#f2f2f2" RowBackground="white" AlternatingRowBackground="#ffcccb"
-                    CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" ItemsSource="{Binding Meter.Channels}">
+                    CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False" ItemsSource="{Binding Meter.Channels}"
+                    FontSize="{Binding FontSize}" SizeChanged="DataGrid_SizeChanged">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Meter" Binding="{Binding ID, Mode=OneWay}" ElementStyle="{StaticResource center}"
                                     HeaderStyle="{StaticResource centerHeader}" />
-                    
+
                 <DataGridTemplateColumn Header="NC">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -57,21 +57,21 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                    
+
                 <DataGridTextColumn Header="Serial #" Binding="{Binding Serial, Mode=OneWay}" 
                                     ElementStyle="{StaticResource center}" HeaderStyle="{StaticResource centerHeader}" />
-                    
+
                 <DataGridComboBoxColumn Header="CT Type" ItemsSource="{Binding Data.CTTypes, Source={StaticResource proxy}}"
                                         TextBinding="{Binding CTType, Mode=TwoWay}" HeaderStyle="{StaticResource centerHeader}" 
                                         ElementStyle="{StaticResource centerCB}" />
-                    
+
                 <DataGridTextColumn Header="Primary" Binding="{Binding Primary, UpdateSourceTrigger=PropertyChanged}"
                                     HeaderStyle="{StaticResource centerHeader}" ElementStyle="{StaticResource center}" />
-                    
+
                 <DataGridTextColumn Header="Secondary" Binding="{Binding Secondary, UpdateSourceTrigger=PropertyChanged}"
                                     HeaderStyle="{StaticResource centerHeader}" ElementStyle="{StaticResource center}" />
             </DataGrid.Columns>
         </DataGrid>
-        
+
     </Grid>
 </UserControl>

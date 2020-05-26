@@ -82,6 +82,8 @@ namespace WpfCommApp
 
         public string[] CTTypes { get; }
 
+        public int FontSize { get; set; }
+
         public Meter Meter
         {
             get { return _meter; }
@@ -158,6 +160,7 @@ namespace WpfCommApp
             Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
             ChannelSize = Meter.Size;
             CTTypes = (Application.Current.Properties["cttypes"] as string[]);
+            FontSize = 19;
         }
 
         #endregion

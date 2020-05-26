@@ -7,7 +7,7 @@
         xmlns:local="clr-namespace:WpfCommApp"
         xmlns:system="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="QuadLogic Controls Corp." MinHeight="500" MinWidth="800" Loaded="Window_Loaded">
+        Title="QuadLogic Controls Corp." MinHeight="500" MinWidth="800" Loaded="Window_Loaded" SizeChanged="Window_SizeChanged">
 
     <Window.Resources>
 
@@ -17,7 +17,7 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="40" />
+            <RowDefinition Height="20" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -48,10 +48,15 @@
                 </DockPanel>
             </Border>
         </StackPanel>
-        
-        <StackPanel Orientation="Vertical" Grid.Row="1">
+
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="30"/>
+            </Grid.RowDefinitions>
+
             <!-- <TabControl x:Name="MeterViewTabs" ItemsSource="{Binding Source={StaticResource ViewTabs}}" SelectedIndex="{Binding TabIndex}" > -->
-            <TabControl x:Name="MeterViewTabs" ItemsSource="{Binding ViewVisibleTabs}" SelectedItem="{Binding CurrentTab}" >
+            <TabControl x:Name="MeterViewTabs" ItemsSource="{Binding ViewVisibleTabs}" SelectedItem="{Binding CurrentTab}" Grid.Row="0">
                 <TabControl.Resources>
                     <DataTemplate DataType="{x:Type local:ContentTabViewModel}">
                         <local:ContentTabView />
@@ -67,18 +72,19 @@
                     </DataTemplate>
                 </TabControl.ItemTemplate>
             </TabControl>
-            <Grid Margin="0 30 0 0" VerticalAlignment="Bottom">
+
+            <Grid VerticalAlignment="Bottom" Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Button Margin="10 0 10 5" Content="Backward" Width="100" Command="{Binding BackwardPage}"
-                    VerticalAlignment="Bottom" IsEnabled="{Binding BackwardEnabled}"/>
-                <Button Margin="10 0 10 5" Grid.Column="1" Content="Forward" Width="100" Command="{Binding ForwardPage}" 
-                    IsEnabled="{Binding ForwardEnabled}"/>
+                <Button Margin="60 0 0 5" Content="Backward" Width="100" Command="{Binding BackwardPage}"
+                    VerticalAlignment="Bottom" IsEnabled="{Binding BackwardEnabled}" HorizontalAlignment="Left"/>
+                <Button Margin="0 0 60 5" Grid.Column="1" Content="Forward" Width="100" Command="{Binding ForwardPage}"
+                    IsEnabled="{Binding ForwardEnabled}" HorizontalAlignment="Right"/>
             </Grid>
-        </StackPanel>
+        </Grid>
     </Grid>
     
 </Window>

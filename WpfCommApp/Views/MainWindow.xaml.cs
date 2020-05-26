@@ -66,5 +66,10 @@ namespace WpfCommApp
         {
             ((e.Source as MainWindow).DataContext as MainViewModel).ImportMeters.Execute(null);
         }
+
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            ((e.Source as MainWindow).DataContext as MainViewModel).ResizeControl.Execute(e);
+        }
     }
 }

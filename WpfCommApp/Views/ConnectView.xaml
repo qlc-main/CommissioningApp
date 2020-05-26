@@ -34,7 +34,6 @@
         <local:BindingProxy x:Key="proxy" Data="{Binding SetPort}" />
     </UserControl.Resources>
 
-
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -49,7 +48,7 @@
             <Run Text=" in order to connect to meter(s)." />
         </TextBlock>
 
-        <StackPanel Margin="0 100 0 0" HorizontalAlignment="Center" Grid.Column="1">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Grid.Column="1">
             <StackPanel Orientation="Horizontal" Margin="0 0 50 0">
                 <TextBlock VerticalAlignment="Center" Text="COM:" Margin="10 0"/>
                 <Button Margin="0 10" Height="20" Width="100" IsEnabled="True" Click="coms_click">

@@ -24,5 +24,19 @@ namespace WpfCommApp
         {
             InitializeComponent();
         }
+
+        private void DataGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // Code to shrink columns when window is resized smaller
+            if (e.NewSize.Width < e.PreviousSize.Width || e.NewSize.Height < e.PreviousSize.Height)
+            {
+                var dg = (sender as DataGrid);
+                for (int i = 0; i < dg.Columns.Count; i++)
+                    dg.Columns[i].Width = 0;
+                dg.UpdateLayout();
+                for (int i = 0; i < dg.Columns.Count; i++)
+                    dg.Columns[i].Width = DataGridLength.Auto;
+            }
+        }
     }
 }

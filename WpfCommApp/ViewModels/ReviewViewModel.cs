@@ -56,10 +56,14 @@ namespace WpfCommApp
             get { return _dispositions[Meter.Disposition]; }
         }
 
+        public int FontSize { get; set; }
+
         public string FSReturn
         {
             get { return Meter.FSReturn ? "No" : "Yes"; }
         }
+
+        public int LedControlHeight { get; set; }
 
         public Meter Meter { get; private set; }
 
@@ -107,6 +111,8 @@ namespace WpfCommApp
             _completed = false;
             CTTypes = (Application.Current.Properties["cttypes"] as string[]);
             _dispositions = (Application.Current.Properties["dispositions"] as Dictionary<string, int>).ToDictionary(x => x.Value, x => x.Key);
+            FontSize = 16;
+            LedControlHeight = 22;
         }
 
         #endregion

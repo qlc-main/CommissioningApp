@@ -27,6 +27,7 @@ namespace WpfCommApp
         private ICommand _importCommand;
         private ICommand _importMeters;
         private ICommand _openTab;
+        private ICommand _resizeControl;
         private IAsyncCommand _saveCommand;
         private ICommand _uploadCommand;
 
@@ -167,6 +168,17 @@ namespace WpfCommApp
                     _openTab = new RelayCommand(p => OpenTab(p as string));
 
                 return _openTab;
+            }
+        }
+
+        public ICommand ResizeControl
+        {
+            get
+            {
+                if (_resizeControl == null)
+                    _resizeControl = new RelayCommand(e => PossiblyResizeControl(e as SizeChangedEventArgs));
+
+                return _resizeControl;
             }
         }
 
@@ -561,6 +573,7 @@ namespace WpfCommApp
             m.FSReturn = split[6] == "1" ? true : false;
             m.OprComplete = split[7] == "1" ? true : false;
             m.Commissioned = split[8] == "1" ? true : false;
+            m.OperationID = split[9];
 
             while ((line = sr.ReadLine()) != null)
             {
@@ -630,6 +643,35 @@ namespace WpfCommApp
                     CurrentTab = tab;
                     ModifyTabs();
                     return;
+                }
+            }
+        }
+
+        private void PossiblyResizeControl(SizeChangedEventArgs e)
+        {
+            if (_tabs.Count > 0 /* && CurrentTab.Pages.IndexOf(CurrentTab.CurrentPage) == 1 */)
+            {
+                if (e.PreviousSize.Width != 0 && e.PreviousSize.Height != 0)
+                {
+                    for (int i = 1; i < _tabs.Count; i++)
+                    {
+                        if (e.NewSize.Width > e.PreviousSize.Width && e.NewSize.Height > e.PreviousSize.Height)
+                        {
+                            (_tabs[i].Pages[0] as ConfigurationViewModel).FontSize = 30;
+                            (_tabs[i].Pages[1] as CommissioningViewModel).FontSize = 28;
+                            (_tabs[i].Pages[1] as CommissioningViewModel).LedControlHeight = 32;
+                            (_tabs[i].Pages[2] as ReviewViewModel).FontSize = 28;
+                            (_tabs[i].Pages[2] as ReviewViewModel).LedControlHeight = 32;
+                        }
+                        else
+                        {
+                            (_tabs[i].Pages[0] as ConfigurationViewModel).FontSize = 19;
+                            (_tabs[i].Pages[1] as CommissioningViewModel).FontSize = 17;
+                            (_tabs[i].Pages[1] as CommissioningViewModel).LedControlHeight = 22;
+                            (_tabs[i].Pages[2] as ReviewViewModel).FontSize = 16;
+                            (_tabs[i].Pages[2] as ReviewViewModel).LedControlHeight = 22;
+                        }
+                    }
                 }
             }
         }

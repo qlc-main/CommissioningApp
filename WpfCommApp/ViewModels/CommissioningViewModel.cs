@@ -497,7 +497,7 @@ namespace WpfCommApp
                         PhaseAText[0][meter] = float.Parse(cols[6]).ToString("0.00");
                         float watts = float.Parse(cols[8]);
                         PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
-                        double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[9]), 2));
+                        double temp = Math.Atan2(float.Parse(cols[9]), watts);
                         if (double.IsNaN(temp))
                             PhaseAText[2][meter] = "--";
                         else
@@ -508,7 +508,7 @@ namespace WpfCommApp
                         PhaseBText[0][meter] = float.Parse(cols[6]).ToString("0.00");
                         float watts = float.Parse(cols[8]);
                         PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
-                        double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[9]), 2));
+                        double temp = Math.Atan2(float.Parse(cols[9]), watts);
                         if (double.IsNaN(temp))
                             PhaseBText[2][meter] = "--";
                         else
@@ -523,7 +523,7 @@ namespace WpfCommApp
                         PhaseAText[0][meter] = float.Parse(cols[3]).ToString("0.00");
                         float watts = float.Parse(cols[5]);
                         PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
-                        double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[6]), 2));
+                        double temp = Math.Atan2(float.Parse(cols[6]), watts);
                         if (double.IsNaN(temp))
                             PhaseAText[2][meter] = "--";
                         else
@@ -534,7 +534,7 @@ namespace WpfCommApp
                         PhaseBText[0][meter] = float.Parse(cols[3]).ToString("0.00");
                         float watts = float.Parse(cols[5]);
                         PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
-                        double temp = watts / Math.Sqrt(Math.Pow(watts, 2) + Math.Pow(float.Parse(cols[6]), 2));
+                        double temp = Math.Atan2(float.Parse(cols[6]), watts);
                         if (double.IsNaN(temp))
                             PhaseBText[2][meter] = "--";
                         else

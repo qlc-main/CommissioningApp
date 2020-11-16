@@ -575,6 +575,13 @@ namespace WpfCommApp
             m.Commissioned = split[8] == "1" ? true : false;
             m.OperationID = split[9];
 
+            // Backwards compatible modification
+            if (split.Length == 11)
+                m.Firmware = split[10];
+
+            if (split.Length > 11)
+                m.Notes = String.Join(",", split.Skip(11));
+
             while ((line = sr.ReadLine()) != null)
             {
                 split = line.Split(new char[] { ',' });

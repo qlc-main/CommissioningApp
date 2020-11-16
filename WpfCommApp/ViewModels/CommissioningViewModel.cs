@@ -18,7 +18,7 @@ namespace WpfCommApp
 
         private bool _break;
         private bool _channelComm;
-        private bool[][] _checker;
+        private bool[][] _allowCheck;
         private bool _completed;
         private int[][][] _diff;
         private string _id;
@@ -83,6 +83,14 @@ namespace WpfCommApp
 
         public string[][] PhaseBText { get; }
 
+        public int Threshold { get; set; }
+
+        public string VoltageA { get; set; }
+
+        public string VoltageB { get; set; }
+
+        public string VoltageC { get; set; }
+
         #endregion
 
         #region Commands
@@ -134,7 +142,7 @@ namespace WpfCommApp
         {
             PhaseAText = new string[4][];
             PhaseBText = new string[4][];
-            _checker = new bool[2][];
+            _allowCheck = new bool[2][];
             _diff = new int[2][][];
             _id = id;
             _idx = idx;
@@ -142,6 +150,7 @@ namespace WpfCommApp
             Disposition = (Application.Current.Properties["dispositions"] as Dictionary<string, int>);
             FontSize = 17;
             LedControlHeight = 22;
+            Threshold = 10;
 
             // _count = 0;
         }
@@ -172,36 +181,36 @@ namespace WpfCommApp
                     if (float.TryParse(_oldPhaseAText[i], out oldP))
                     {
                         newP = float.Parse(PhaseAText[0][i]);
-                        var math = (newP - oldP) / ((oldP + newP) / 2);
-                        if (math > 1)
-                            _checker[0][i] = true;
-                        else if (math < -1)
+                        // var math = (newP - oldP) / ((oldP + newP) / 2);
+                        if (newP - oldP > Threshold)
+                            _allowCheck[0][i] = true;
+                        else if (oldP - newP > Threshold)
                         {
-                            if (Meter.Channels[i].Phase1 == false && newP == 0)
+                            if (Meter.Channels[i].Phase1 == false)
                             {
                                 Meter.Channels[i].Phase1 = true;
                                 Meter.Channels[i].Forced[0] = false;
                             }
 
-                            _checker[0][i] = false;
+                            _allowCheck[0][i] = false;
                         }
                     }
 
                     if (float.TryParse(_oldPhaseBText[i], out oldP))
                     {
                         newP = float.Parse(PhaseBText[0][i]);
-                        var math = (newP - oldP) / ((oldP + newP) / 2);
-                        if (math > 1)
-                            _checker[1][i] = true;
-                        else if (math < -1)
+                        // var math = (newP - oldP) / ((oldP + newP) / 2);
+                        if (newP - oldP > Threshold)
+                            _allowCheck[1][i] = true;
+                        else if (oldP - newP > Threshold)
                         {
-                            if (Meter.Channels[i].Phase2 == false && newP == 0)
+                            if (Meter.Channels[i].Phase2 == false)
                             {
                                 Meter.Channels[i].Phase2 = true;
                                 Meter.Channels[i].Forced[1] = false;
                             }
 
-                            _checker[1][i] = false;
+                            _allowCheck[1][i] = false;
                         }
                     }
                 }
@@ -301,14 +310,14 @@ namespace WpfCommApp
             // User can suggest separate phase of channel if there is already another phase suggested
             bool contains = Meter.Channels.Any(channel => (channel.Phase1 == false || channel.Phase2 == false) && channel.ID != c.ID);
 
-            if (phase == "Phase1" && _checker[0][c.ID - 1])
+            if (phase == "Phase1" && _allowCheck[0][c.ID - 1])
             {
                 if (c.Phase1 == null && !contains)
                     c.Phase1 = false;
                 else if (c.Phase1 == false)
                     c.Phase1 = null;
             }
-            else if (phase == "Phase2" && _checker[1][c.ID - 1])
+            else if (phase == "Phase2" && _allowCheck[1][c.ID - 1])
             {
                 if (c.Phase2 == null && !contains)
                     c.Phase2 = false;
@@ -334,8 +343,8 @@ namespace WpfCommApp
                 _diff[1] = new int[length][];
                 _oldPhaseAText = new string[length];
                 _oldPhaseBText = new string[length];
-                _checker[0] = new bool[length];
-                _checker[1] = new bool[length];
+                _allowCheck[0] = new bool[length];
+                _allowCheck[1] = new bool[length];
 
                 for (int i = 0; i < 4; i++)
                 {
@@ -351,8 +360,8 @@ namespace WpfCommApp
                             PhaseAText[i][j] = res == 0 ? "A" : res == 1 ? "B" : "C";
                             res = (cnt++ % 3);
                             PhaseBText[i][j] = res == 0 ? "A" : res == 1 ? "B" : "C";
-                            _checker[0][j] = false;
-                            _checker[1][j] = false;
+                            _allowCheck[0][j] = false;
+                            _allowCheck[1][j] = false;
                             _diff[0][j] = new int[2] { 0, 0 };
                             _diff[1][j] = new int[2] { 0, 0 };
                             _oldPhaseAText[j] = string.Empty;
@@ -498,6 +507,15 @@ namespace WpfCommApp
                         float watts = float.Parse(cols[8]);
                         PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
                         double temp = Math.Atan2(float.Parse(cols[9]), watts);
+
+                        // Set the voltages for the Meter Information box
+                        if (PhaseAText[3][meter] == "A")
+                            VoltageA = cols[7] + " V";
+                        else if (PhaseAText[3][meter] == "B")
+                            VoltageB = cols[7] + " V";
+                        else if (PhaseAText[3][meter] == "C")
+                            VoltageC = cols[7] + " V";
+
                         if (double.IsNaN(temp))
                             PhaseAText[2][meter] = "--";
                         else
@@ -509,6 +527,15 @@ namespace WpfCommApp
                         float watts = float.Parse(cols[8]);
                         PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
                         double temp = Math.Atan2(float.Parse(cols[9]), watts);
+
+                        // Set the voltages for the Meter Information box
+                        if (PhaseBText[3][meter] == "A")
+                            VoltageA = cols[7] + " V";
+                        else if (PhaseBText[3][meter] == "B")
+                            VoltageB = cols[7] + " V";
+                        else if (PhaseBText[3][meter] == "C")
+                            VoltageC = cols[7] + " V";
+
                         if (double.IsNaN(temp))
                             PhaseBText[2][meter] = "--";
                         else
@@ -524,6 +551,15 @@ namespace WpfCommApp
                         float watts = float.Parse(cols[5]);
                         PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
                         double temp = Math.Atan2(float.Parse(cols[6]), watts);
+
+                        // Set the voltages for the Meter Information box
+                        if (PhaseAText[3][meter] == "A")
+                            VoltageA = cols[4] + " V";
+                        else if (PhaseAText[3][meter] == "B")
+                            VoltageB = cols[4] + " V";
+                        else if (PhaseAText[3][meter] == "C")
+                            VoltageC = cols[4] + " V";
+
                         if (double.IsNaN(temp))
                             PhaseAText[2][meter] = "--";
                         else
@@ -535,6 +571,15 @@ namespace WpfCommApp
                         float watts = float.Parse(cols[5]);
                         PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
                         double temp = Math.Atan2(float.Parse(cols[6]), watts);
+
+                        // Set the voltages for the Meter Information box
+                        if (PhaseBText[3][meter] == "A")
+                            VoltageA = cols[4] + " V";
+                        else if (PhaseBText[3][meter] == "B")
+                            VoltageB = cols[4] + " V";
+                        else if (PhaseBText[3][meter] == "C")
+                            VoltageC = cols[4] + " V";
+
                         if (double.IsNaN(temp))
                             PhaseBText[2][meter] = "--";
                         else
@@ -572,7 +617,8 @@ namespace WpfCommApp
                 }
 
                 // if at least one phase and the meter details have been entered mark as complete
-                if (_channelComm && Meter.Disposition > 0 && !string.IsNullOrEmpty(Meter.Floor) && !string.IsNullOrEmpty(Meter.Location) && !string.IsNullOrEmpty(Meter.OperationID))
+                if (_channelComm && Meter.Disposition > 0 && !string.IsNullOrEmpty(Meter.Floor) && !string.IsNullOrEmpty(Meter.Location) && !string.IsNullOrEmpty(Meter.OperationID)
+                    && Meter.NoteRequired == "Hidden")
                     Completed = true;
                 else
                     Completed = false;

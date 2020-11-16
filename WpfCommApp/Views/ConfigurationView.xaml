@@ -29,9 +29,10 @@
                 <ComboBox FontSize="20" SelectedValuePath="Content" Height="40"
                           SelectedValue="{Binding ComboBoxText}" VerticalContentAlignment="Center"
                           Margin="0 20 0 0">
+                    <ComboBoxItem Content="50"/>
                     <ComboBoxItem Content="100"/>
                     <ComboBoxItem Content="200"/>
-                    <ComboBoxItem Content="300"/>
+                    <ComboBoxItem Content="400"/>
                 </ComboBox>
             </StackPanel>
 

@@ -14,6 +14,7 @@ namespace WpfCommApp
 
         private bool _commissioned;
         private int _disposition;
+        private string _firmware;
         private string _floor;
         private bool _fsReturn;
         private string _id;
@@ -60,6 +61,20 @@ namespace WpfCommApp
                 {
                     _disposition = value;
                     OnPropertyChanged(nameof(Disposition));
+                    OnPropertyChanged(nameof(NoteRequired));
+                }
+            }
+        }
+
+        public string Firmware
+        {
+            get { return _firmware; }
+            set
+            {
+                if (_firmware != value)
+                {
+                    _firmware = value;
+                    OnPropertyChanged(nameof(Firmware));
                 }
             }
         }
@@ -116,6 +131,17 @@ namespace WpfCommApp
             }
         }
 
+        public string NoteRequired
+        {
+            get
+            {
+                if (this != null && (Disposition != -1 && Disposition != 10 && Disposition != 113 && string.IsNullOrEmpty(Notes)))
+                    return "Visible";
+                else
+                    return "Hidden";
+            }
+        }
+
         public string Notes
         {
             get { return _notes; }
@@ -125,6 +151,7 @@ namespace WpfCommApp
                 {
                     _notes = value;
                     OnPropertyChanged(nameof(Notes));
+                    OnPropertyChanged(nameof(NoteRequired));
                 }
             }
         }
@@ -236,9 +263,8 @@ namespace WpfCommApp
                 Directory.CreateDirectory(dir);
 
             StreamWriter sw = new StreamWriter(string.Format("{0}//{1}.txt", dir, _id));
-            sw.WriteLine("S/N,Floor,Location,Size,PLC Verified,Disposition,FS Return,Opr Complete,Commissioned,Operation ID");
-            sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9}", _id, _floor, _location, Size, _plcVerified ? "Yes" : "No",
-                _disposition, _fsReturn ? "1" : "0", _oprComplete ? "1" : "0", _commissioned ? "1" : "0", _operationID));
+            sw.WriteLine("S/N,Floor,Location,Size,PLC Verified,Disposition,FS Return,Opr Complete,Commissioned,Operation ID,Firmware,Notes");
+            sw.WriteLine(string.Format($"{_id},{_floor},{_location},{Size},{(_plcVerified ? "Yes" : "No")},{_disposition},{(_fsReturn ? "1" : "0")},{(_oprComplete ? "1" : "0")},{(_commissioned ? "1" : "0")},{_operationID},{Firmware},{Notes}"));
             sw.WriteLine("CT,Serial,Apartment,C/B#,CT Type,Primary,Secondary,Multiplier,Commissioned,Forced,Reason,Notes");
             foreach (Channel c in Channels)
                 c.Save(sw);

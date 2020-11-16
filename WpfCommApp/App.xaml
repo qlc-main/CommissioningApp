@@ -4,9 +4,6 @@
              xmlns:local="clr-namespace:WpfCommApp"
              StartupUri="Views/MainWindow.xaml">
     <Application.Resources>
-        <!-- Used for Debugging -->
-        <local:DefaultConvert x:Key="DefaultConvert" />
-
         <!-- Converter used to do comparison of Reason variable with NC value -->
         <local:NC x:Key="Disable" />
 

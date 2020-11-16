@@ -211,8 +211,23 @@ namespace WpfCommApp
                 // Sets the size of the meter based on the type/version of meter connected
                 string version = _serial.GetVersion();
                 string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
-                if (lines[1].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1] == "59330354")
+                string inspect = "";
+                bool stop = false;
+                foreach(string line in lines)
                 {
+                    if (line.ToLower().Contains("software"))
+                        stop = true;
+                    else if (stop)
+                    {
+                        inspect = line;
+                        break;
+                    }
+                }
+
+                var cols = inspect.Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries);
+                if (cols[1] == "59330354")
+                {
+                    meter.Firmware = cols[1];
                     _serial.NewFirmware = true;
                     // Retrieves child serial numbers and assigns them to respective channel
                     string[] serials = _serial.GetChildSerial().Split(',');
@@ -222,8 +237,9 @@ namespace WpfCommApp
                         meter.Channels[i].Serial = serials[i];
                     }
                 }
-                else if (lines[2].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1].StartsWith("593"))
+                else if (cols[1] == "59330353")
                 {
+                    meter.Firmware = cols[1];
                     // Retrieves child serial numbers and assigns them to respective channel
                     string[] serials = _serial.GetChildSerial().Split(',');
                     for (int i = 0; i < 12; i++)
@@ -232,6 +248,72 @@ namespace WpfCommApp
                         meter.Channels[i].Serial = serials[i];
                     }
                 }
+                else
+                {
+                    InfoView info = null;
+                    InfoViewModel ifvm = new InfoViewModel("Bad Firmware Version", $"Invalid Firmware Version {cols[1]}");
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        info = new InfoView
+                        {
+                            Owner = Application.Current.MainWindow,
+                            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                            DataContext = ifvm
+                        };
+
+                        info.Show();
+                    });
+
+                    return null;
+                }
+            }
+            else
+            {
+                // Firmware was not populated from the file so read directly from the meter
+                if (meters[_id].Firmware == null)
+                {
+                    string version = _serial.GetVersion();
+                    string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
+                    string inspect = "";
+                    bool stop = false;
+                    foreach (string line in lines)
+                    {
+                        if (line.ToLower().Contains("software"))
+                            stop = true;
+                        else if (stop)
+                        {
+                            inspect = line;
+                            break;
+                        }
+                    }
+
+                    var cols = inspect.Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries);
+                    meters[_id].Firmware = cols[1];
+                }
+
+                // This is an unknown firmware version, print message to user and exit
+                if (meters[_id].Firmware != "59330353" && meters[_id].Firmware != "59330354")
+                {
+                    InfoView info = null;
+                    InfoViewModel ifvm = new InfoViewModel("Bad Firmware Version", $"Invalid Firmware Version {meters[_id].Firmware}");
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        info = new InfoView
+                        {
+                            Owner = Application.Current.MainWindow,
+                            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                            DataContext = ifvm
+                        };
+
+                        info.Show();
+                    });
+
+                    return null;
+                }
+                else
+                    _serial.NewFirmware = (meters[_id].Firmware == "59330354");
             }
 
             return _id;
@@ -388,6 +470,7 @@ namespace WpfCommApp
 
             if (CreateNewMeter() == null)
             {
+                _serial.Close();
                 IsBusy = false;
                 Completed = false;
                 return;

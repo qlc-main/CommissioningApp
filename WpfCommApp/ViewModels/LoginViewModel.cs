@@ -130,7 +130,7 @@ namespace WpfCommApp
                 return;
             }
 
-            var service = CreateService();
+            // var service = CreateService();
             Dictionary<string, Meter> metersToCommission = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
 
             while (true)
@@ -148,8 +148,8 @@ namespace WpfCommApp
                         continue;
 
                     // Upload meters that have not been processed
-                    if (!successMeters.Contains(kvp.Key) && !failedMeters.ContainsKey(kvp.Key))
-                        UploadToGoogleDrive(service, String.Format("{0}\\{1}.txt", toUploadDir, kvp.Key), "1ITbna7DnCpXUvj2BgE3UtPgiZFIPITBo");
+                    // if (!successMeters.Contains(kvp.Key) && !failedMeters.ContainsKey(kvp.Key))
+                    //     UploadToGoogleDrive(service, String.Format("{0}\\{1}.txt", toUploadDir, kvp.Key), "1ITbna7DnCpXUvj2BgE3UtPgiZFIPITBo");
 
                     string query, response, rid, oldMeters;
                     Dictionary<string, string> data;
@@ -157,7 +157,7 @@ namespace WpfCommApp
                     // Check if a record already exists with this meter ID if so the current user is editting a record
                     // if not the current user is creating or adding a record, empty response indicates a new record
                     // will be generated
-                    oldMeters = await DoQueryRecordString(client, "bhfwfquxf", String.Format("{{19.TV.'{0}'}}AND{{37.TV.'{0}'}}", kvp.Value.ID, kvp.Value.OperationID), "37");
+                    oldMeters = await DoQueryRecordString(client, "bhfwfquxf", String.Format("{{19.TV.'{0}'}}AND{{37.TV.{1}}}", kvp.Value.ID, kvp.Value.OperationID), "37");
                     var originalCount = failedMeters.Count;
                     var results = await GetSite(client, kvp, operationToSite, failedMeters);
                     sid = results.Item1;
@@ -184,6 +184,13 @@ namespace WpfCommApp
                     }
 
                     data = CreateFSData(response, kvp.Value, deviceIssue);
+                    if (data.ContainsKey("error"))
+                    {
+                        FailedMessage = "Failure encountered, check log file";
+                        failedMeters.Add(kvp.Key, String.Format(data["error"], kvp.Key));
+                        continue;
+                    }
+
                     if (CheckCase(kvp.Key, sid, siteToCases, ref goldenCase, ref data, ref failedMeters, ref infoMeters))
                         continue;
 
@@ -207,6 +214,8 @@ namespace WpfCommApp
                         System.IO.File.Move(String.Format("{0}\\{1}.txt", toUploadDir, kvp.Key), String.Format("{0}\\{1}.txt", uploadedDir, kvp.Key));
                         successMeters.Add(kvp.Key);
                     }
+
+                    System.Threading.Thread.Sleep(2500);
                 }
 
                 // Run through commissioning loop again if there was a case that needed a "golden" reference case 
@@ -226,7 +235,7 @@ namespace WpfCommApp
                     break;
             }
 
-            string windowMessage = LoggingInfo(successMeters, failedMeters, infoMeters, service);
+            string windowMessage = LoggingInfo(successMeters, failedMeters, infoMeters);
 
             // Enable submit button after process complete
             SubmitEnabled = true;
@@ -258,6 +267,7 @@ namespace WpfCommApp
         private Dictionary<string, string> CreateFSData(string response, Meter meter, string deviceIssue)
         {
             string line;
+            bool exit = true;
             Dictionary<string, string> data = new Dictionary<string, string>();
             string[] lines = response.Split(new char[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
             // Iterates over each line until the necessary data has been filled in or lines have been exhausted, the latter should not occur
@@ -265,6 +275,7 @@ namespace WpfCommApp
             {
                 // Case # is 17
                 // Device ID is 18
+                // Device Issue ID is 21
                 if (lines[i].Contains("<f id=\"137\">") && !String.IsNullOrEmpty(deviceIssue))
                 {
                     line = lines[i];
@@ -282,7 +293,21 @@ namespace WpfCommApp
                     data["_fid_18"] = line.Substring(line.IndexOf(">") + 1, line.LastIndexOf("<") - (line.IndexOf(">") + 1));
                 }
                 else if ((data.Count == 2 && String.IsNullOrEmpty(deviceIssue)) || (data.Count == 3 && !String.IsNullOrEmpty(deviceIssue)))
+                {
+                    exit = false;
                     break;
+                }
+            }
+
+            if (exit)
+            {
+                if (!data.ContainsKey("_fid_17"))
+                    data["error"] = "Unable to find the case for {0}";
+                else if (!data.ContainsKey("_fid_18"))
+                    data["error"] = "Unable to find the device id for {0}";
+                else if (!data.ContainsKey("_fid_21"))
+                    data["error"] = "Unable to find the device issue id for {0}";
+                return data;
             }
 
             data["_fid_9"] = "17";                                       // Activity value to indicate commissioning
@@ -471,7 +496,7 @@ namespace WpfCommApp
         /// <param name="failedMeters"></param>
         /// <param name="infoMeters"></param>
         /// <param name="service"></param>
-        private string LoggingInfo(List<string> successMeters, Dictionary<string, string> failedMeters, Dictionary<string, string> infoMeters, DriveService service)
+        private string LoggingInfo(List<string> successMeters, Dictionary<string, string> failedMeters, Dictionary<string, string> infoMeters)
         {
             string fileName = String.Format("{0}\\Logs\\UploadLog_{1}.txt", Directory.GetCurrentDirectory(), DateTime.Now.ToString("yyyyMMddHHmmss"));
             string logMessage = "";
@@ -511,7 +536,7 @@ namespace WpfCommApp
             }
 
             DumpToLog(fileName, "Finished uploading", logMessage);
-            UploadToGoogleDrive(service, fileName, "1YkVwvSJuQrb4RGsy9BoNTIfAuhqb-YNS");
+            // UploadToGoogleDrive(service, fileName, "1YkVwvSJuQrb4RGsy9BoNTIfAuhqb-YNS");
 
             return windowMessage;
         }
@@ -638,7 +663,10 @@ namespace WpfCommApp
             // If not, attempt to assign the correct case
             var exit = false;
             var cases = siteToCases[sid].Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            if (!cases.Contains(data["_fid_17"]))
+
+            if (data == null)
+                return true;
+            else if (!cases.Contains(data["_fid_17"]))
             {
                 string originalCase = data["_fid_17"];
                 if (!siteToCases[sid].Contains(","))

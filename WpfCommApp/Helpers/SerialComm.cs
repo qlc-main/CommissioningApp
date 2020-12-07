@@ -333,7 +333,7 @@ namespace WpfCommApp
                 _serial.Open();
                 Login();
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 SerialNo = "";
             }

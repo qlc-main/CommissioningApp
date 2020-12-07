@@ -1,9 +1,5 @@
 ﻿using Hellang.MessageBus;
-using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -211,7 +207,7 @@ namespace WpfCommApp
             OnPropertyChanged(nameof(Meter));
         }
 
-        private async Task Watcher()
+        private void Watcher()
         {
             // Loop while true so that function doesn't exit prematurely
             while(_break) { }

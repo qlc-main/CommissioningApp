@@ -1,4 +1,8 @@
-﻿using System;
+﻿using Google.Apis.Auth.OAuth2;
+using Google.Apis.Drive.v3;
+using Google.Apis.Services;
+using Google.Apis.Util.Store;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,11 +14,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Google.Apis.Auth.OAuth2;
-using Google.Apis.Drive.v3;
-using Google.Apis.Drive.v3.Data;
-using Google.Apis.Services;
-using Google.Apis.Util.Store;
 
 namespace WpfCommApp
 {
@@ -109,13 +108,12 @@ namespace WpfCommApp
         {
             SubmitEnabled = false;
             HttpClient client = new HttpClient();
-            string fileName, sid = null, goldenCase = "";
+            string sid = null, goldenCase = "";
             string toUploadDir = String.Format("{0}\\ToUpload", Directory.GetCurrentDirectory());
             string logDir = String.Format("{0}\\ErrorLogs", Directory.GetCurrentDirectory());
             Dictionary<string, string> failedMeters = new Dictionary<string, string>(), infoMeters = new Dictionary<string, string>();
             Dictionary<string, string> operationToSite = new Dictionary<string, string>(), siteToCases = new Dictionary<string, string>();
             List<string> successMeters = new List<string>();
-            List<string> recordIDs, caseIDs = null;
             if (!Directory.Exists(logDir))
                 Directory.CreateDirectory(logDir);
 
@@ -592,7 +590,6 @@ namespace WpfCommApp
         /// <returns></returns>
         private string ScanOldMeters(string response)
         {
-            string id;
             string[] lines = response.Split(new char[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < lines.Length; i++)
             {

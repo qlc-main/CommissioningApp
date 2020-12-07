@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace WpfCommApp
 {
@@ -262,6 +262,20 @@ namespace WpfCommApp
             if (!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
+            var jsonSerializerSettings = new JsonSerializerSettings
+            {
+                ContractResolver = new OrderedContractResolver(),
+            };
+
+            using (var sw = new StreamWriter(string.Format("{0}//{1}.json", dir, _id)))
+                sw.Write(JsonConvert.SerializeObject(this, Formatting.Indented, jsonSerializerSettings));
+        }
+
+        public void OldSave(string dir)
+        {
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+
             StreamWriter sw = new StreamWriter(string.Format("{0}//{1}.txt", dir, _id));
             sw.WriteLine("S/N,Floor,Location,Size,PLC Verified,Disposition,FS Return,Opr Complete,Commissioned,Operation ID,Firmware,Notes");
             sw.WriteLine(string.Format($"{_id},{_floor},{_location},{Size},{(_plcVerified ? "Yes" : "No")},{_disposition},{(_fsReturn ? "1" : "0")},{(_oprComplete ? "1" : "0")},{(_commissioned ? "1" : "0")},{_operationID},{Firmware},{Notes}"));
@@ -272,5 +286,17 @@ namespace WpfCommApp
         }
 
         #endregion
+    }
+
+    public class OrderedContractResolver : DefaultContractResolver
+    {
+        protected override IList<JsonProperty> CreateProperties(Type type, MemberSerialization memberSerialization)
+        {
+            var @base = base.CreateProperties(type, memberSerialization);
+            var ordered = @base
+                .OrderBy(p => p.PropertyName)
+                .ToList();
+            return ordered;
+        }
     }
 }

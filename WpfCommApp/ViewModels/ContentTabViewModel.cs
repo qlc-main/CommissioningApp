@@ -41,9 +41,9 @@ namespace WpfCommApp
             get 
             {
                 if (CurrentPage != null)
-                    return CurrentPage.Name + (MeterSerialNo == "" ? "" : " (" + MeterSerialNo + ")");
+                    return CurrentPage.Name + (MeterSerialNo == "" ? "" : $" ({MeterSerialNo} on {SerialIdx})");
                 else
-                    return Previous.Name + (MeterSerialNo == "" ? "" : " (" + MeterSerialNo + ")");
+                    return Previous.Name + (MeterSerialNo == "" ? "" : $" ({MeterSerialNo} on {SerialIdx})");
             } 
         }
 

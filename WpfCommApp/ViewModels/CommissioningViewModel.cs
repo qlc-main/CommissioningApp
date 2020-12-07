@@ -1,13 +1,12 @@
 ﻿
+using Hellang.MessageBus;
 using System;
-using System.Collections.ObjectModel;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using System.Threading;
-using System.Collections.Generic;
-using Hellang.MessageBus;
-using System.Linq;
 
 namespace WpfCommApp
 {
@@ -140,8 +139,8 @@ namespace WpfCommApp
         /// <param name="idx">Index to retrieve Serial object</param>
         public CommissioningViewModel(string id, string idx)
         {
-            PhaseAText = new string[4][];
-            PhaseBText = new string[4][];
+            PhaseAText = new string[5][];
+            PhaseBText = new string[5][];
             _allowCheck = new bool[2][];
             _diff = new int[2][][];
             _id = id;
@@ -338,6 +337,7 @@ namespace WpfCommApp
             {
                 _serial = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>)[_idx];
 
+                int channel = 1;
                 int length = Meter.Channels.Count;
                 _diff[0] = new int[length][];
                 _diff[1] = new int[length][];
@@ -346,12 +346,12 @@ namespace WpfCommApp
                 _allowCheck[0] = new bool[length];
                 _allowCheck[1] = new bool[length];
 
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < 5; i++)
                 {
                     PhaseAText[i] = new string[length];
                     PhaseBText[i] = new string[length];
 
-                    if (i == 3)
+                    if (i == 4)
                     {
                         int cnt = 0;
                         for (int j = 0; j < length; j++)
@@ -366,6 +366,15 @@ namespace WpfCommApp
                             _diff[1][j] = new int[2] { 0, 0 };
                             _oldPhaseAText[j] = string.Empty;
                             _oldPhaseBText[j] = string.Empty;
+                        }
+                    }
+                    else if (i == 3)
+                    {
+                        // Displays the CT banks while commissioning
+                        for (int j = 0; j < length; j++)
+                        {
+                            PhaseAText[i][j] = channel++.ToString();
+                            PhaseBText[i][j] = channel++.ToString();
                         }
                     }
                     else
@@ -440,7 +449,7 @@ namespace WpfCommApp
             {
                 // Create thread that launches modal window for user and continues to poll
                 // original process to determine if it has completed
-                Thread t = new Thread(new ThreadStart(() =>
+                Thread t = new Thread(new ThreadStart(async () =>
                 {
                     InfoView info = null;
                     InfoViewModel ifvm = new InfoViewModel(task, token, tokenSource, "Serial Connection Lost", "Attempting to Reconnect");
@@ -457,10 +466,8 @@ namespace WpfCommApp
                         info.Show();
                     });
 
-                    var monitor = Task.Run(ifvm.Poll);
-                    monitor.Wait();
-
-                    if (monitor.Result)
+                    var monitor = await ifvm.Poll();
+                    if (monitor)
                     {
                         // Close the window if the program has successfully re-established communication
                         Application.Current.Dispatcher.Invoke(() =>
@@ -509,11 +516,11 @@ namespace WpfCommApp
                         double temp = Math.Atan2(float.Parse(cols[9]), watts);
 
                         // Set the voltages for the Meter Information box
-                        if (PhaseAText[3][meter] == "A")
+                        if (PhaseAText[4][meter] == "A")
                             VoltageA = cols[7] + " V";
-                        else if (PhaseAText[3][meter] == "B")
+                        else if (PhaseAText[4][meter] == "B")
                             VoltageB = cols[7] + " V";
-                        else if (PhaseAText[3][meter] == "C")
+                        else if (PhaseAText[4][meter] == "C")
                             VoltageC = cols[7] + " V";
 
                         if (double.IsNaN(temp))
@@ -553,11 +560,11 @@ namespace WpfCommApp
                         double temp = Math.Atan2(float.Parse(cols[6]), watts);
 
                         // Set the voltages for the Meter Information box
-                        if (PhaseAText[3][meter] == "A")
+                        if (PhaseAText[4][meter] == "A")
                             VoltageA = cols[4] + " V";
-                        else if (PhaseAText[3][meter] == "B")
+                        else if (PhaseAText[4][meter] == "B")
                             VoltageB = cols[4] + " V";
-                        else if (PhaseAText[3][meter] == "C")
+                        else if (PhaseAText[4][meter] == "C")
                             VoltageC = cols[4] + " V";
 
                         if (double.IsNaN(temp))

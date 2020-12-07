@@ -1,15 +1,12 @@
-﻿using System.Windows;
-using System.Windows.Input;
-using System.Threading.Tasks;
-using System.IO.Ports;
-using System.Threading;
+﻿using Hellang.MessageBus;
+using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using System.Collections.ObjectModel;
 using System.Linq;
-using Hellang.MessageBus;
-using System;
-using System.Management;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Input;
 
 namespace WpfCommApp
 {
@@ -396,7 +393,7 @@ namespace WpfCommApp
                 {
                     // Create thread that launches modal window for user and continues to poll
                     // original process to determine if it has completed
-                    Thread t = new Thread(new ThreadStart(() =>
+                    Thread t = new Thread(new ThreadStart(async () =>
                     {
                         InfoView info = null;
                         InfoViewModel ifvm = new InfoViewModel(task, token, tokenSource, "Meter Serial Connection", "Connecting to Meter");
@@ -413,10 +410,8 @@ namespace WpfCommApp
                             info.Show();
                         });
 
-                        var monitor = Task.Run(ifvm.Poll);
-                        monitor.Wait();
-
-                        if (monitor.Result)
+                        var monitor = await ifvm.Poll();
+                        if (monitor)
                         {
                             // Close the window if the program has successfully re-established communication
                             Application.Current.Dispatcher.Invoke(() =>

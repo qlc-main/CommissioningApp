@@ -1,15 +1,14 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Windows;
-using System.Linq;
-using System.Windows.Input;
-using System.Threading.Tasks;
-using System.IO;
-using System.Threading;
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
+using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Data;
+using System.Windows.Input;
 
 namespace WpfCommApp
 {
@@ -345,7 +344,7 @@ namespace WpfCommApp
         /// Switches the active meter tab after a user has moved the optical port to a different meter
         /// </summary>
         /// <returns></returns>
-        public async Task SwitchMeters()
+        public void SwitchMeters()
         {
             // Retrieves the serial number of the meter currently attached to the serial port
             string serialIdx = CurrentTab.SerialIdx;
@@ -511,8 +510,15 @@ namespace WpfCommApp
             if (!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
             else
-                foreach(string file in Directory.GetFiles(dir))
-                    ImportMeter(file);
+            {
+                foreach (string fileName in Directory.GetFiles(dir))
+                {
+                    if (fileName.Contains("txt"))
+                        OldImportMeter(fileName);
+                    else
+                        ImportMeter(fileName);
+                }
+            }
 
             _imported = true;
         }
@@ -540,11 +546,25 @@ namespace WpfCommApp
         }
 
         /// <summary>
-        /// Performs the actual import of meter data by iterating over the lines and setting 
+        /// Performs the actual import of meter data by iterating over the lines and setting
         /// appropriate variables
         /// </summary>
         /// <param name="fileName">File location of meter data</param>
         private void ImportMeter(string fileName)
+        {
+            var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
+            Meter m = new Meter();
+            using (var sr = new StreamReader(fileName))
+                m = JsonConvert.DeserializeObject<Meter>(sr.ReadToEnd());
+            meters.Add(m.ID, m);
+        }
+
+        /// <summary>
+        /// Performs the actual import of meter data by iterating over the lines and setting 
+        /// appropriate variables
+        /// </summary>
+        /// <param name="fileName">File location of meter data</param>
+        private void OldImportMeter(string fileName)
         {
             StreamReader sr = new StreamReader(fileName);
             var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
@@ -555,7 +575,6 @@ namespace WpfCommApp
             int subtract = 0;
             sr.ReadLine();          // skip meter header row
             line = sr.ReadLine();   // meter properties
-            sr.ReadLine();          // skip the header line for the Channels
 
             // Set Meter Properties
             split = line.Split(new char[1] { ',' });
@@ -567,7 +586,6 @@ namespace WpfCommApp
 
             m.Floor = split[1];
             m.Location = split[2];
-            //m.Size = int.Parse(split[3]);
             m.PLCVerified = split[4] == "Yes" ? true : false;
             m.Disposition = int.Parse(split[5]);
             m.FSReturn = split[6] == "1" ? true : false;
@@ -582,6 +600,23 @@ namespace WpfCommApp
             if (split.Length > 11)
                 m.Notes = String.Join(",", split.Skip(11));
 
+            if (line.Count(f => f == '"') != 2)
+            {
+                m.Notes += "\r\n";
+                while (true)
+                {
+                    line = sr.ReadLine();
+                    m.Notes += line;
+                    if (line.Contains('"'))
+                        break;
+                    m.Notes += "\r\n";
+                }
+            }
+
+            // Remove quotations from notes
+            m.Notes = m.Notes.Trim(new char[1] { '"' });
+
+            sr.ReadLine();          // skip the header line for the Channels
             while ((line = sr.ReadLine()) != null)
             {
                 split = line.Split(new char[] { ',' });
@@ -612,8 +647,14 @@ namespace WpfCommApp
             }
 
             sr.Close();
-            //m.Size = m.Channels.Count;
             meters.Add(m.ID, m);
+
+            // Get the path to save the new meter format
+            var path = Path.GetDirectoryName(fileName);
+            m.Save(path);
+
+            // Delete the old file
+            File.Delete(fileName);
         }
 
         /// <summary>

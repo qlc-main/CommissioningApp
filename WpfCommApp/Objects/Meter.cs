@@ -294,7 +294,8 @@ namespace WpfCommApp
         {
             var @base = base.CreateProperties(type, memberSerialization);
             var ordered = @base
-                .OrderBy(p => p.PropertyName)
+                .OrderBy(p => p.Order ?? int.MaxValue)
+                .ThenBy(p => p.PropertyName)
                 .ToList();
             return ordered;
         }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -109,6 +110,7 @@ namespace WpfCommApp
             }
         }
 
+        [JsonProperty(Order = -2)]
         public bool? Phase1
         {
             get { return _phase1; }
@@ -133,6 +135,7 @@ namespace WpfCommApp
             }
         }
 
+        [JsonProperty(Order = -2)]
         public bool? Phase2
         {
             get { return _phase2; }
@@ -157,6 +160,7 @@ namespace WpfCommApp
             }
         }
 
+        [JsonProperty(Order = -3)]
         public string Primary
         {
             get
@@ -188,6 +192,7 @@ namespace WpfCommApp
             }
         }
 
+        [JsonProperty(Order = -3)]
         public string Secondary
         {
             get { return _secondary; }

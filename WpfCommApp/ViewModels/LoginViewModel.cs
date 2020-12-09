@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Net;
 
 namespace WpfCommApp
 {
@@ -108,7 +109,7 @@ namespace WpfCommApp
         {
             SubmitEnabled = false;
             HttpClient client = new HttpClient();
-            string sid = null, goldenCase = "";
+            string sid = null;
             string toUploadDir = String.Format("{0}\\ToUpload", Directory.GetCurrentDirectory());
             string logDir = String.Format("{0}\\ErrorLogs", Directory.GetCurrentDirectory());
             Dictionary<string, string> failedMeters = new Dictionary<string, string>(), infoMeters = new Dictionary<string, string>();
@@ -131,106 +132,87 @@ namespace WpfCommApp
             // var service = CreateService();
             Dictionary<string, Meter> metersToCommission = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
 
-            while (true)
+            // bhfwfquxf - FS Reports Table
+            // bghhvi54m - Operations Table
+            // bghhviw72 - Devices Table
+            // bgs8pzryj - Device Issues
+            //
+            // Iterate over each meter in memory and attempt to upload contents to CRM
+            foreach (KeyValuePair<string, Meter> kvp in metersToCommission)
             {
-                // bhfwfquxf - FS Reports Table
-                // bghhvi54m - Operations Table
-                // bghhviw72 - Devices Table
-                // bgs8pzryj - Device Issues
-                // 
-                // Iterate over each meter in memory and attempt to upload contents to CRM
-                foreach (KeyValuePair<string, Meter> kvp in metersToCommission)
+                // Only upload meters that have gone through each step and are commissioned
+                if (!kvp.Value.Commissioned)
+                    continue;
+
+                // Upload meters that have not been processed
+                // if (!successMeters.Contains(kvp.Key) && !failedMeters.ContainsKey(kvp.Key))
+                //     UploadToGoogleDrive(service, String.Format("{0}\\{1}.txt", toUploadDir, kvp.Key), "1ITbna7DnCpXUvj2BgE3UtPgiZFIPITBo");
+
+                string query, response, rid, oldMeters;
+                Dictionary<string, string> data;
+
+                // Check if a record already exists with this meter ID if so the current user is editting a record
+                // if not the current user is creating or adding a record, empty response indicates a new record
+                // will be generated
+                oldMeters = await DoQueryRecordString(client, "bhfwfquxf", String.Format("{{19.TV.'{0}'}}AND{{37.TV.{1}}}", kvp.Value.ID, kvp.Value.OperationID), "37");
+                var originalCount = failedMeters.Count;
+                GetSite(client, kvp.Value.OperationID, kvp.Key, ref operationToSite, ref siteToCases, ref failedMeters);
+                sid = operationToSite[kvp.Value.OperationID];
+
+                if (failedMeters.Count > originalCount)
+                    continue;
+
+                // Check if current serial num has a device issue with a customer problem commissioning request
+                // associated with the current site and a status that is not completed
+                var deviceIssue = await IsDeviceIssue(client, kvp.Key, sid);
+
+                // Get the Device Record
+                query = string.Format("{{186.TV.'{0}'}}", kvp.Key);
+                response = await DoQueryRecordString(client, "bghhviw72", query);
+
+                if (String.IsNullOrEmpty(response))
                 {
-                    // Only upload meters that have gone through each step and are commissioned
-                    if (!kvp.Value.Commissioned)
-                        continue;
-
-                    // Upload meters that have not been processed
-                    // if (!successMeters.Contains(kvp.Key) && !failedMeters.ContainsKey(kvp.Key))
-                    //     UploadToGoogleDrive(service, String.Format("{0}\\{1}.txt", toUploadDir, kvp.Key), "1ITbna7DnCpXUvj2BgE3UtPgiZFIPITBo");
-
-                    string query, response, rid, oldMeters;
-                    Dictionary<string, string> data;
-
-                    // Check if a record already exists with this meter ID if so the current user is editting a record
-                    // if not the current user is creating or adding a record, empty response indicates a new record
-                    // will be generated
-                    oldMeters = await DoQueryRecordString(client, "bhfwfquxf", String.Format("{{19.TV.'{0}'}}AND{{37.TV.{1}}}", kvp.Value.ID, kvp.Value.OperationID), "37");
-                    var originalCount = failedMeters.Count;
-                    var results = await GetSite(client, kvp, operationToSite, failedMeters);
-                    sid = results.Item1;
-                    if (!siteToCases.ContainsKey(sid))
-                        siteToCases.Add(sid, results.Item2);
-                    operationToSite = results.Item3;
-                    failedMeters = results.Item4;
-                    if (failedMeters.Count > originalCount)
-                        continue;
-
-                    // Check if current serial num has a device issue with a customer problem commissioning request
-                    // associated with the current site and a status that is not completed
-                    var deviceIssue = await IsDeviceIssue(client, kvp.Key, sid);
-
-                    // Get the Device Record 
-                    query = string.Format("{{186.TV.'{0}'}}", kvp.Key);
-                    response = await DoQueryRecordString(client, "bghhviw72", query);
-
-                    if (String.IsNullOrEmpty(response))
-                    {
-                        FailedMessage = "Failure encountered, check log file";
-                        failedMeters.Add(kvp.Key, String.Format("Can't find serial number: {0} in Devices, continuing...", kvp.Key));
-                        continue;
-                    }
-
-                    data = CreateFSData(response, kvp.Value, deviceIssue);
-                    if (data.ContainsKey("error"))
-                    {
-                        FailedMessage = "Failure encountered, check log file";
-                        failedMeters.Add(kvp.Key, String.Format(data["error"], kvp.Key));
-                        continue;
-                    }
-
-                    if (CheckCase(kvp.Key, sid, siteToCases, ref goldenCase, ref data, ref failedMeters, ref infoMeters))
-                        continue;
-
-                    var results2 = await UploadFSReport(client, oldMeters, kvp.Value.OperationID, kvp.Key, logDir, data, failedMeters);
-                    rid = results2.Item1;
-                    var edit = results2.Item2;
-                    failedMeters = results2.Item3;
-
-                    // If the edit or create record was successful then upload the meter file to CRM
-                    if (!string.IsNullOrEmpty(rid))
-                    {
-                        foreach (Channel c in kvp.Value.Channels)
-                        {
-                            await UploadMeterPoint(client, c, rid, edit, kvp.Key, logDir);
-                        }
-
-                        // If successfully created FS Report, move meter save file but keep it locally just in case it needs to be referenced in the future
-                        // 1ITbna7DnCpXUvj2BgE3UtPgiZFIPITBo Meters Folder
-                        // 1YkVwvSJuQrb4RGsy9BoNTIfAuhqb-YNS Logs Folder
-
-                        System.IO.File.Move(String.Format("{0}\\{1}.txt", toUploadDir, kvp.Key), String.Format("{0}\\{1}.txt", uploadedDir, kvp.Key));
-                        successMeters.Add(kvp.Key);
-                    }
-
-                    System.Threading.Thread.Sleep(2500);
+                    FailedMessage = "Failure encountered, check log file";
+                    failedMeters.Add(kvp.Key, String.Format("Can't find serial number: {0} in Devices, continuing...", kvp.Key));
+                    continue;
                 }
 
-                // Run through commissioning loop again if there was a case that needed a "golden" reference case 
-                // and it's original case is not associated with the current site from the operation ID
-                bool completeCommissioning = true;
-                metersToCommission = new Dictionary<string, Meter>();
-                foreach (KeyValuePair<string, string> kv in failedMeters)
+                data = CreateFSData(response, kvp.Value, deviceIssue);
+                if (data.ContainsKey("error"))
                 {
-                    if (kv.Value == "Need golden case id because current case id is associated with different site")
-                    {
-                        completeCommissioning = false;
-                        metersToCommission.Add(kv.Value, (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[kv.Value]);
-                    }
+                    FailedMessage = "Failure encountered, check log file";
+                    failedMeters.Add(kvp.Key, String.Format(data["error"], kvp.Key));
+                    continue;
                 }
 
-                if (completeCommissioning)
-                    break;
+                if (!siteToCases[sid].Split(new char[1] { ',' }).Contains(data["_fid_17"]))
+                {
+                    failedMeters.Add(kvp.Key, $"Serial {kvp.Key} has case {data["_fid_17"]} which is not associated with site {sid}");
+                    continue;
+                }
+
+                var results2 = await UploadFSReport(client, oldMeters, kvp.Value.OperationID, kvp.Key, logDir, data, failedMeters);
+                rid = results2.Item1;
+                var edit = results2.Item2;
+                failedMeters = results2.Item3;
+
+                // If the edit or create record was successful then upload the meter file to CRM
+                if (!string.IsNullOrEmpty(rid))
+                {
+                    foreach (Channel c in kvp.Value.Channels)
+                    {
+                        await UploadMeterPoint(client, c, rid, edit, kvp.Key, logDir);
+                    }
+
+                    // If successfully created FS Report, move meter save file but keep it locally just in case it needs to be referenced in the future
+                    // 1ITbna7DnCpXUvj2BgE3UtPgiZFIPITBo Meters Folder
+                    // 1YkVwvSJuQrb4RGsy9BoNTIfAuhqb-YNS Logs Folder
+
+                    File.Move(String.Format("{0}\\{1}.json", toUploadDir, kvp.Key), String.Format("{0}\\{1}.json", uploadedDir, kvp.Key));
+                    successMeters.Add(kvp.Key);
+                }
+
+                System.Threading.Thread.Sleep(2500);
             }
 
             string windowMessage = LoggingInfo(successMeters, failedMeters, infoMeters);
@@ -613,32 +595,29 @@ namespace WpfCommApp
         /// <param name="operationToSite"></param>
         /// <param name="failedMeters"></param>
         /// <returns></returns>
-        private async Task<Tuple<string, string, Dictionary<string, string>, Dictionary<string, string>>> GetSite(HttpClient client, KeyValuePair<string, Meter> kvp, Dictionary<string, string> operationToSite, Dictionary<string, string> failedMeters)
+        private void GetSite(HttpClient client, string operationID, string serial, ref Dictionary<string, string> operationToSite, ref Dictionary<string, string> siteToCases, ref Dictionary<string, string> failedMeters)
         {
-            var operationID = kvp.Value.OperationID;
-            string cases = "";
             if (!operationToSite.ContainsKey(operationID))
             {
-                var response = await GetRecord(client, "bghhvi54m", operationID);
+                var response = GetRecord(client, "bghhvi54m", operationID).GetAwaiter().GetResult();
                 var sid = GetSiteID(response);
 
                 // Unable to get the site id for this meter so move to next meter
                 if (sid == "")
                 {
                     FailedMessage = "Unable to retrieve Site from Operation ID";
-                    failedMeters.Add(kvp.Key, String.Format("Unable to retrieve Site from Operation ID: {0}", operationID));
-                    return new Tuple<string, string, Dictionary<string, string>, Dictionary<string, string>> ("", "", operationToSite, failedMeters);
+                    failedMeters.Add(serial, String.Format("Unable to retrieve Site from Operation ID: {0}", operationID));
+                    return;
                 }
 
                 operationToSite.Add(operationID, sid);
 
                 // Retrieve commissioning cases that are not completed and attached to this site
                 var query = string.Format("{{146.TV.'{0}'}}AND{{174.TV.'Commissioning Request'}}AND{{140.XEX.'I-Completed'}}", sid);
-                var caseIDs = await DoQueryRecordID(client, "bghhvievy", query);
-                cases = String.Join(",", caseIDs);
+                var caseIDs = DoQueryRecordID(client, "bghhvievy", query).GetAwaiter().GetResult();
+                if (!siteToCases.ContainsKey(sid))
+                    siteToCases.Add(sid, String.Join(",", caseIDs));
             }
-
-            return new Tuple<string, string, Dictionary<string, string>, Dictionary<string, string>>(operationToSite[operationID], cases, operationToSite, failedMeters);
         }
 
         /// <summary>
@@ -850,7 +829,7 @@ namespace WpfCommApp
         private async Task<string> AddRecord(HttpClient client, string db, Dictionary<string, string> info)
         {
             // Creates the parameter url string to append to the base URL string below and then returns the string 
-            string append = string.Join("&", info.Select(x => string.Join("=", x.Key, x.Value)));
+            string append = string.Join("&", info.Select(x => string.Join("=", x.Key, WebUtility.UrlEncode(x.Value))));
             return await client.GetStringAsync(string.Format("https://quadlogic.quickbase.com/db/{0}?a=API_AddRecord&{1}", db, append));
         }
 
@@ -1000,7 +979,7 @@ namespace WpfCommApp
         private async Task<string> EditRecord(HttpClient client, string db, Dictionary<string, string> data)
         {
             // Creates the parameter url string to append to the base URL string below and then returns the string 
-            string append = string.Join("&", data.Select(x => string.Join("=", x.Key, x.Value)));
+            string append = string.Join("&", data.Select(x => string.Join("=", x.Key, WebUtility.UrlEncode(x.Value))));
             return await client.GetStringAsync(string.Format("https://quadlogic.quickbase.com/db/{0}?a=API_EditRecord&{1}", db, append));
         }
 

@@ -745,7 +745,7 @@ namespace WpfCommApp
         /// </summary>
         private async void ShutdownProcedure()
         {
-            await Task.Run(SaveMeters);
+            await SaveMeters();
             Application.Current.Dispatcher.Invoke(() =>
             {
                 Application.Current.Shutdown();

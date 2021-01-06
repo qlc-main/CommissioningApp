@@ -290,8 +290,10 @@ namespace WpfCommApp
                 return data;
             }
 
+            var fileName = String.Format("{0}\\ToUpload\\{1}.json", Directory.GetCurrentDirectory(), meter.ID);
+            var fileModified = File.GetLastWriteTime(fileName);
             data["_fid_9"] = "17";                                       // Activity value to indicate commissioning
-            data["_fid_12"] = DateTime.Today.ToString("MM-dd-yyyy");     // Date that work performed
+            data["_fid_12"] = fileModified.ToString("MM-dd-yyyy");       // Date that work performed
             data["_fid_13"] = "2";                                       // Duration of work
             data["_fid_16"] = meter.Notes;                               // Comments for meter
             data["_fid_70"] = meter.Location;                            // Device Location

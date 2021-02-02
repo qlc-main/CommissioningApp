@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -281,11 +282,11 @@ namespace WpfCommApp
         /// Creates a new meter tab only if the comport that the new meter tab was requested for 
         /// is not currently in use by another meter being commissioned.
         /// </summary>
-        public void CreateNewMeter()
+        public async Task CreateNewMeter()
         {
             // If the Serial Connection tab is the only tab, create the new meter
             if (_tabs.Count == 1)
-                (CurrentTab.CurrentPage as ConnectViewModel).CreateNewMeter();
+                await (CurrentTab.CurrentPage as ConnectViewModel).CreateNewMeter();
 
             // If Serial Connection is not the only tab iterate over all tabs and 
             // verify that the com port is not currently in use, if it is 
@@ -300,7 +301,7 @@ namespace WpfCommApp
                             return;
                 }
 
-                (CurrentTab.CurrentPage as ConnectViewModel).CreateNewMeter();
+                await (CurrentTab.CurrentPage as ConnectViewModel).CreateNewMeter();
             }
         }
 
@@ -344,7 +345,7 @@ namespace WpfCommApp
         /// Switches the active meter tab after a user has moved the optical port to a different meter
         /// </summary>
         /// <returns></returns>
-        public void SwitchMeters()
+        public async Task SwitchMeters()
         {
             // Retrieves the serial number of the meter currently attached to the serial port
             string serialIdx = CurrentTab.SerialIdx;
@@ -377,11 +378,11 @@ namespace WpfCommApp
                 Meters.Add(currSerialNo, m);
 
                 // Sets the size of the meter based on the type of meter connected
-                string version = Serial[serialIdx].GetVersion();
+                string version = await Serial[serialIdx].GetVersion();
                 string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
                 if (lines[2].Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries)[1].StartsWith("593"))
                 {
-                    string[] serials = Serial[serialIdx].GetChildSerial().Split(',');
+                    string[] serials = (await Serial[serialIdx].GetChildSerial()).Split(',');
                     for (int i = 0; i < 12; i++)
                     {
                         m.Channels.Add(new Channel(i + 1));
@@ -507,6 +508,7 @@ namespace WpfCommApp
         {
             string dir = string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
 
+            var importedFileCount = 0;
             if (!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
             else
@@ -517,10 +519,13 @@ namespace WpfCommApp
                         OldImportMeter(fileName);
                     else
                         ImportMeter(fileName);
+
+                    importedFileCount++;
                 }
             }
 
             _imported = true;
+            Globals.Logger.LogInformation($"Imported {importedFileCount} files from {dir}");
         }
 
         /// <summary>
@@ -573,7 +578,7 @@ namespace WpfCommApp
             string line;
             string[] split;
             int subtract = 0;
-            sr.ReadLine();          // skip meter header row
+            var header = sr.ReadLine();          // skip meter header row
             line = sr.ReadLine();   // meter properties
 
             // Set Meter Properties
@@ -594,29 +599,23 @@ namespace WpfCommApp
             m.OperationID = split[9];
 
             // Backwards compatible modification
-            if (split.Length == 11)
+            if (split.Length == 11 && header.Contains("Firmware"))
                 m.Firmware = split[10];
 
-            if (split.Length > 11)
+            if (split.Length > 11 && header.Contains("Notes"))
                 m.Notes = String.Join(",", split.Skip(11));
 
-            if (line.Count(f => f == '"') != 2)
+            line = sr.ReadLine();
+            while (true)
             {
-                m.Notes += "\r\n";
-                while (true)
-                {
-                    line = sr.ReadLine();
-                    m.Notes += line;
-                    if (line.Contains('"'))
-                        break;
-                    m.Notes += "\r\n";
-                }
+                if (line.Contains("CT,Serial,Apartment,C/B#,CT Type,Primary,Secondary,Multiplier,Commissioned,Forced,Reason,Notes"))
+                    break;
+                m.Notes += $"\r\n{line}";
             }
 
-            // Remove quotations from notes
+            // Remove quotations from notes, if any
             m.Notes = m.Notes.Trim(new char[1] { '"' });
 
-            sr.ReadLine();          // skip the header line for the Channels
             while ((line = sr.ReadLine()) != null)
             {
                 split = line.Split(new char[] { ',' });
@@ -738,6 +737,8 @@ namespace WpfCommApp
                 Directory.CreateDirectory(dir);
             foreach (KeyValuePair<string, Meter> kvp in (Application.Current.Properties["meters"] as Dictionary<string, Meter>))
                 kvp.Value.Save(dir);
+
+            Globals.Logger.LogInformation("Saved all meters in memory to disk.");
         }
 
         /// <summary>
@@ -748,6 +749,7 @@ namespace WpfCommApp
             await SaveMeters();
             Application.Current.Dispatcher.Invoke(() =>
             {
+                Globals.Logger.LogInformation("Closing the application.");
                 Application.Current.Shutdown();
             });
         }

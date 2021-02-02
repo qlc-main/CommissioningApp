@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO.Ports;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -72,14 +75,13 @@ namespace WpfCommApp
         /// Gets the Version of the meter that is currently connected
         /// </summary>
         /// <returns>String with the result of the version command</returns>
-        public string GetVersion()
+        public async Task<string> GetVersion()
         {
             // Issues version command, waits for the data to be present
             // Reads buffer until command line prompt received
             // Returns result to calling function
-            WriteToSerial("ver");
-            while (_serial.BytesToRead == 0) { }
-            ReadBuffer(true);
+            await WriteToSerial("ver");
+            await ReadBuffer(true);
 #if DEBUG            
             Console.Write(SerialBuffer + ' ');
 #endif
@@ -90,29 +92,14 @@ namespace WpfCommApp
         /// Retrieves child serial numbers for the MC5N meters
         /// </summary>
         /// <returns>Comma separated list of ordered child serial numbers</returns>
-        public string GetChildSerial()
+        public async Task<string> GetChildSerial()
         {
             // Initiates phase diagnostic command and waits for response
-            WriteToSerial("mscan -Gp");
-            int failed = 0;
-            while (_serial.BytesToRead == 0)
-            {
-                // If response is not received after about 3 seconds then assume
-                // that probe was disconnected clear buffers, exit function and
-                // try again
-                if (++failed % 10 == 0)
-                {
-                    _serial.DiscardInBuffer();
-                    _serial.DiscardOutBuffer();
-                    return "failed";
-                }
-
-                Thread.Sleep(250);
-            }
+            await WriteToSerial("mscan -Gp");
 
             // If Phase Diagnostic command is successful, store the contents within the buffer and then return buffer
             // for further use
-            ReadBuffer(true);
+            await ReadBuffer(true);
 #if DEBUG
             Console.Write(SerialBuffer + ' ');
 #endif
@@ -135,7 +122,7 @@ namespace WpfCommApp
         /// Logins into the meter head for a MC5N meter using pre supplied passwords
         /// </summary>
         /// <returns>Boolean indicating success of login attempt</returns>
-        public bool Login()
+        public async Task<bool> Login()
         {
             // Makes 10 attempts to get serial number of currently connected meter
             int attempts = 0;
@@ -144,14 +131,9 @@ namespace WpfCommApp
             {
                 // Modifies communication method if this is first login attempt
                 // and 2 previous attempts at retrieving serial number failed
-                if (attempts > 1)
-                {
+                if (attempts == 2)
                     carriageReturn = true;
-                    Thread.Sleep(500);
-                    _serial.DiscardInBuffer();
-                    _serial.DiscardOutBuffer();
-                    Thread.Sleep(1000);
-                }
+
                 // Exits function 10 unsuccessful attempts
                 else if (attempts == 10)
                 {
@@ -162,20 +144,12 @@ namespace WpfCommApp
                 }
 
                 // Writes command to serial to request meter serial number
-                WriteToSerial("attn -D");
-
-                // Checks if meter serial number was successfully received, if so, 
-                // read response and break out of this execution loop
-                if (_serial.BytesToRead == 22)
-                {
-                    ReadBuffer();
-                    if (SerialBuffer.Split(new char[0], StringSplitOptions.RemoveEmptyEntries)[0].Length == 8)
-                        break;
-                }
+                await WriteToSerial("attn -D");
+                if (await ReadBuffer())
+                    break;
 
                 // If specified number of bytes was not received, throw away anything that was received
                 // increment counter and try again
-                _serial.DiscardInBuffer();
                 attempts++;
             }
 
@@ -195,8 +169,8 @@ namespace WpfCommApp
             // Exits function by returning true if login was successful
             foreach(string s in pwds)
             {
-                WriteToSerial(String.Format("attn -S{0} {1}", SerialNo, s));
-                ReadBuffer(true);
+                await WriteToSerial(String.Format("attn -S{0} {1}", SerialNo, s));
+                await ReadBuffer(true);
 #if DEBUG
                 Console.Write(SerialBuffer + " ");
 #endif
@@ -216,17 +190,17 @@ namespace WpfCommApp
         /// </summary>
         /// <param name="token">Cancellation token that is polled to see if the user wishes to exit this function</param>
         /// <returns>Phase Diagnostic for meter in string format</returns>
-        public string PhaseDiagnostic(CancellationToken token)
+        public async Task<string> PhaseDiagnostic(CancellationToken token)
         {
             // Reads serial number after each PhaseDiagnostic read to determine if
             // still attached to the same meter
-            WriteToSerial("attn -d", false);
-            ReadBuffer(true);
+            await WriteToSerial("attn -d");
+            await ReadBuffer(true);
             string newSerial = "";
             if (string.IsNullOrEmpty(SerialBuffer))
             {
                 string oldSerialNo = SerialNo;
-                if (Login())
+                if (await Login())
                 {
                     if (oldSerialNo != SerialNo)
                         return "switch";
@@ -267,51 +241,39 @@ namespace WpfCommApp
                 string totalBuffer = "";
                 foreach (int i in System.Linq.Enumerable.Range(0, 12))
                 {
-                    WriteToSerial(String.Format("md -p -#2 -@{0}", i + 32));
-                    int failed = 0;
-                    while (_serial.BytesToRead == 0)
+                    await WriteToSerial(String.Format("md -p -#2 -@{0}", i + 32));
+                    if (!(await ReadBuffer(true, token)))
                     {
-                        if (++failed % 10 == 0)
-                        {
-                            _serial.DiscardInBuffer();
-                            _serial.DiscardOutBuffer();
+                        if (string.IsNullOrEmpty(SerialBuffer))
                             return "failed";
-                        }
-                        Thread.Sleep(50);
+                        else
+                            return "";
                     }
 
-                    ReadBuffer(true);
                     totalBuffer += SerialBuffer;
                 }
 
-                SerialBuffer = totalBuffer;
+                // Set value of buffer only if correct number of lines were returned
+                if (totalBuffer.Count(c => c == '\n') == 72)
+                    SerialBuffer = totalBuffer;
+                else
+                {
+                    Console.WriteLine("Corrupt data received from serial port");
+                    return "invalid";
+                }
             }
             else
             {
-                WriteToSerial("mscan -Gp");
-                int failed = 0;
-                while (_serial.BytesToRead == 0)
+                await WriteToSerial("mscan -Gp");
+
+                // Store serial contents in buffer
+                if (!(await ReadBuffer(true, token)))
                 {
-                    // If response is not received after about 3 seconds then assume
-                    // that probe was disconnected clear buffers, exit function and
-                    // try again
-                    if (++failed % 10 == 0)
-                    {
-                        _serial.DiscardInBuffer();
-                        _serial.DiscardOutBuffer();
+                    if (string.IsNullOrEmpty(SerialBuffer))
                         return "failed";
-                    }
-
-                    // Cancels current function execution because user requested to end execution
-                    if (token.IsCancellationRequested)
+                    else
                         return "";
-
-                    Thread.Sleep(250);
                 }
-
-                // If Phase Diagnostic command is successful, store the contents within the buffer and then return buffer
-                // for further use
-                ReadBuffer(true);
             }
 #if DEBUG
             Console.Write(SerialBuffer + ' ');
@@ -324,18 +286,19 @@ namespace WpfCommApp
         /// </summary>
         /// <param name="com">Port that this instance is attempting to connect</param>
         /// <returns>Serial Number of meter if there was a successful login</returns>
-        public string SetupSerial(string com)
+        public async Task<string> SetupSerial(string com)
         {
             COM = com;
             _serial = new SerialPort(com, 19200);
             try
             {
                 _serial.Open();
-                Login();
+                await Login();
             }
-            catch (Exception)
+            catch (UnauthorizedAccessException)
             {
                 SerialNo = "";
+                Globals.Logger.LogInformation($"Port {com} is already open");
             }
 
             return SerialNo;
@@ -349,14 +312,13 @@ namespace WpfCommApp
         /// </summary>
         /// <param name="data">Data in string format to be sent</param>
         /// <param name="echo">Boolean indicating whether the data should be echoed to user interface</param>
-        private void WriteToSerial(string data, bool echo = true)
+        private async Task WriteToSerial(string data)
         {
             // Echos data and then writes data to serial depending on carriage return value
             // some meters need a Carriage Return and Line Feed, others are ok with just 
             // line feed
 #if DEBUG
-            if (echo)
-                Console.WriteLine(data);
+            Console.WriteLine(data);
 #endif
             _serial.DiscardInBuffer();
             _serial.DiscardOutBuffer();
@@ -364,24 +326,42 @@ namespace WpfCommApp
                 _serial.WriteLine(data);
             else
                 _serial.Write(data + "\r\n");
-            Thread.Sleep(500);
+            await Task.Delay(500);
         }
 
         /// <summary>
         /// Reads the contents of the buffer from the serial object
         /// </summary>
         /// <param name="cmd">Boolean indicating whether or not to continue reading until command prompt is received</param>
-        private void ReadBuffer(bool cmd = false)
+        /// <param name="token"></param>
+        /// <returns>Boolean, whether the read attempt was successful or not</returns>
+        private async Task<bool> ReadBuffer(bool cmd = false, CancellationToken token = default)
         {
-            // Stores current buffer contents and continues trying to extract data until command prompt received or 
-            // max number of attempts is reached
-            SerialBuffer = _serial.ReadExisting();
             int counter = 0;
-            while (cmd && !endPrompt.IsMatch(SerialBuffer) && counter++ < 10)
+            SerialBuffer = string.Empty;
+            while ((!cmd && _serial.BytesToRead == 22) || (cmd && counter < 1000 && ((_serial.BytesToRead == 0 && string.IsNullOrEmpty(SerialBuffer)) ||
+                !endPrompt.IsMatch(SerialBuffer))))
             {
-                SerialBuffer += _serial.ReadExisting();
-                Thread.Sleep(250);
+                if (_serial.BytesToRead > 0)
+                {
+                    SerialBuffer += _serial.ReadExisting();
+                    if (!cmd)
+                        break;
+                } else if (string.IsNullOrEmpty(SerialBuffer) && counter > 300)
+                    break;
+
+                // Cancels current function execution because user requested to end execution
+                if (token.IsCancellationRequested)
+                    break;
+
+                await Task.Delay(5);
+                counter++;
             }
+
+            if ((string.IsNullOrEmpty(SerialBuffer) && (!cmd || counter > 300)) || token.IsCancellationRequested)
+                return false;
+
+            return true;
         }
 
         #endregion

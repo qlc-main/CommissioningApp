@@ -1,8 +1,9 @@
 ﻿using Hellang.MessageBus;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using WpfCommApp.Managers;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -176,11 +177,13 @@ namespace WpfCommApp
                 if (c.CTType != "" || c.Secondary != "")
                     c.Primary = ComboBoxText;
             }
+
+            Globals.Logger.LogInformation($"Set the primary for all channels to {ComboBoxText}");
         }
 
         private void Start()
         {
-            Task.Run(Watcher);
+            Globals.Tasker.Run(Watcher);
         }
 
         private void Stop()
@@ -195,16 +198,20 @@ namespace WpfCommApp
         /// <param name="id"></param>
         private void Uncommission(int id)
         {
+            // Marks specified channel as not available for commissioning
             _meter.Channels[id - 1].Primary = "";
             _meter.Channels[id - 1].Secondary = "";
             _meter.Channels[id - 1].CTType = "";
+            Globals.Logger.LogInformation($"Marked channel {id} as uncommissioned");
 
+            // Modifies the ChannelSize property given the number of uncommissioned channels
             int total = 0;
             foreach (Channel c in Meter.Channels)
                 if (c.CTType != "" || c.Primary != "" || c.Secondary != "")
                     total++;
             ChannelSize = total;
             OnPropertyChanged(nameof(Meter));
+            Globals.Logger.LogInformation($"Meter {_meter.ID} now has {ChannelSize} channels for commissioning.");
         }
 
         private void Watcher()
@@ -213,13 +220,43 @@ namespace WpfCommApp
             while(_break) { }
 
             bool complete;
+            string previousMsg = string.Empty;
             while(true)
             {
                 complete = true;
                 foreach(Channel c in Meter.Channels)
                 {
-                    if (!string.IsNullOrEmpty(c.CTType) && (string.IsNullOrEmpty(c.Primary) || string.IsNullOrEmpty(c.Secondary)))
+                    if ((!string.IsNullOrEmpty(c.CTType) && (string.IsNullOrEmpty(c.Primary) || string.IsNullOrEmpty(c.Secondary))) ||
+                        (string.IsNullOrEmpty(c.CTType) && (!string.IsNullOrEmpty(c.Primary) || !string.IsNullOrEmpty(c.Secondary))))
                     {
+                        // Construct log message
+                        string msg = $"Meter {Meter.ID} Channel {c.ID} requires ";
+                        if (!string.IsNullOrEmpty(c.CTType))
+                        {
+                            if (string.IsNullOrEmpty(c.Primary))
+                                msg += "Primary";
+                            else if (string.IsNullOrEmpty(c.Secondary))
+                                msg += "Secondary";
+                            else
+                                msg = string.Empty;
+                        }
+                        else
+                        {
+                            if (!string.IsNullOrEmpty(c.Primary))
+                                msg += "removal of Primary or population of CT Type";
+                            else if (!string.IsNullOrEmpty(c.Secondary))
+                                msg += "removal of Secondary or population of CT Type";
+                            else
+                                msg = string.Empty;
+                        }
+
+                        // Log message only if different from previous message
+                        if (previousMsg != msg && !string.IsNullOrEmpty(msg))
+                        {
+                            Globals.Logger.LogInformation(msg);
+                            previousMsg = msg;
+                        }
+
                         complete = false;
                         break;
                     }

@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -166,12 +167,12 @@ namespace WpfCommApp
         /// <summary>
         /// Code used to create/open meter object and create a tab for this item
         /// </summary>
-        public string CreateNewMeter()
+        public async Task<string> CreateNewMeter()
         {
             Dictionary<string, Meter> meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
 
             // Logs into meter and retrieves it's ID
-            _id = _serial.SetupSerial(_comPort);
+            _id = await _serial.SetupSerial(_comPort);
             if (_id == "")
             {
                 InfoView info = null;
@@ -201,12 +202,13 @@ namespace WpfCommApp
             // Creates new meter if imported meters do not match current meter
             if (!meters.ContainsKey(_id))
             {
+                Globals.Logger.LogInformation($"Creating new meter for {_id}");
                 meters.Add(_id, new Meter());
                 var meter = meters[_id];
                 meter.ID = _id;
 
                 // Sets the size of the meter based on the type/version of meter connected
-                string version = _serial.GetVersion();
+                string version = await _serial.GetVersion();
                 string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
                 string inspect = "";
                 bool stop = false;
@@ -222,28 +224,30 @@ namespace WpfCommApp
                 }
 
                 var cols = inspect.Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries);
+                string[] serials = (await _serial.GetChildSerial()).Split(',');
                 if (cols[1] == "59330354")
                 {
                     meter.Firmware = cols[1];
                     _serial.NewFirmware = true;
                     // Retrieves child serial numbers and assigns them to respective channel
-                    string[] serials = _serial.GetChildSerial().Split(',');
                     for (int i = 0; i < 12; i++)
                     {
                         meter.Channels.Add(new Channel(i + 1));
                         meter.Channels[i].Serial = serials[i];
                     }
+
+                    Globals.Logger.LogInformation($"Meter {_id} has firmware version {meter.Firmware}.");
                 }
                 else if (cols[1] == "59330353")
                 {
                     meter.Firmware = cols[1];
                     // Retrieves child serial numbers and assigns them to respective channel
-                    string[] serials = _serial.GetChildSerial().Split(',');
                     for (int i = 0; i < 12; i++)
                     {
                         meter.Channels.Add(new Channel(i + 1));
                         meter.Channels[i].Serial = serials[i];
                     }
+                    Globals.Logger.LogInformation($"Meter {_id} has firmware version {meter.Firmware}.");
                 }
                 else
                 {
@@ -270,7 +274,7 @@ namespace WpfCommApp
                 // Firmware was not populated from the file so read directly from the meter
                 if (meters[_id].Firmware == null)
                 {
-                    string version = _serial.GetVersion();
+                    string version = await _serial.GetVersion();
                     string[] lines = version.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
                     string inspect = "";
                     bool stop = false;
@@ -287,6 +291,7 @@ namespace WpfCommApp
 
                     var cols = inspect.Split(new char[0], System.StringSplitOptions.RemoveEmptyEntries);
                     meters[_id].Firmware = cols[1];
+                    Globals.Logger.LogInformation($"Meter {_id} has firmware version {meters[_id].Firmware}.");
                 }
 
                 // This is an unknown firmware version, print message to user and exit
@@ -366,6 +371,7 @@ namespace WpfCommApp
 
                     comms.Remove(_comPort);
                     ComPorts[idx].Used = false;
+                    Globals.Logger.LogInformation($"Closed serial port {_comPort}");
                 }
             }
             finally
@@ -385,7 +391,7 @@ namespace WpfCommApp
             {
                 var tokenSource = new CancellationTokenSource();
                 CancellationToken token = tokenSource.Token;
-                var task = Task.Factory.StartNew(() => EstablishSerial(), token);
+                var task = EstablishSerial(token);
 
                 // Waits 5 seconds for Phase Diagnostic call to finish execution if not then display
                 // modal to user and attempt to reconnect 
@@ -446,7 +452,7 @@ namespace WpfCommApp
             }
         }
 
-        private void EstablishSerial()
+        private async Task EstablishSerial(CancellationToken token)
         {
             IsBusy = true;
             Dictionary<string, SerialComm> comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
@@ -463,7 +469,8 @@ namespace WpfCommApp
                     return;
             }
 
-            if (CreateNewMeter() == null)
+            Globals.Logger.LogInformation($"Opened serial port {COMPORT}");
+            if (await CreateNewMeter() == null)
             {
                 _serial.Close();
                 IsBusy = false;

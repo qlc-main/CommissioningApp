@@ -87,11 +87,21 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Async\AsyncAwaiter.cs" />
+    <Compile Include="Helpers\DifferenceTracker.cs" />
+    <Compile Include="Helpers\Globals.cs" />
+    <Compile Include="Managers\File.cs" />
     <Compile Include="Helpers\AsyncRelayCommand.cs" />
     <Compile Include="Helpers\Converters.cs" />
     <Compile Include="Helpers\ObservableObject.cs" />
     <Compile Include="Helpers\RelayCommand.cs" />
     <Compile Include="Helpers\SerialComm.cs" />
+    <Compile Include="Managers\Logger.cs" />
+    <Compile Include="Logging\FileLogger.cs" />
+    <Compile Include="Logging\ILogger.cs" />
+    <Compile Include="Logging\LogLevel.cs" />
+    <Compile Include="Logging\LogOutputLevel.cs" />
+    <Compile Include="Managers\Tasker.cs" />
     <Compile Include="Objects\Serial.cs" />
     <Compile Include="ViewModels\ContentTabViewModel.cs" />
     <Compile Include="Messages\MessageCenter.cs" />

@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -17,13 +18,13 @@ namespace WpfCommApp
 
         private bool _break;
         private bool _channelComm;
-        private bool[][] _allowCheck;
+        private bool[,] _allowCheck;
         private bool _completed;
-        private int[][][] _diff;
+        private DifferenceTracker _difference;
         private string _id;
         private string _idx;
-        private string[] _oldPhaseAText;
-        private string[] _oldPhaseBText;
+        private string[] _oldPhase1Text;
+        private string[] _oldPhase2Text;
 
         private ICommand _mp;
         private ICommand _pd;
@@ -62,6 +63,8 @@ namespace WpfCommApp
             }
         }
 
+        public bool DisplayUpdated { get; set; }
+
         public Dictionary<string, int> Disposition { get; }
 
         public int FontSize { get; set; }
@@ -78,9 +81,9 @@ namespace WpfCommApp
 
         public string Name { get { return "Commissioning"; } }
 
-        public string[][] PhaseAText { get; }
+        public string[,] Phase1Text { get; }
 
-        public string[][] PhaseBText { get; }
+        public string[,] Phase2Text { get; }
 
         public int Threshold { get; set; }
 
@@ -139,17 +142,18 @@ namespace WpfCommApp
         /// <param name="idx">Index to retrieve Serial object</param>
         public CommissioningViewModel(string id, string idx)
         {
-            PhaseAText = new string[5][];
-            PhaseBText = new string[5][];
-            _allowCheck = new bool[2][];
-            _diff = new int[2][][];
             _id = id;
             _idx = idx;
             Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
+            _allowCheck = new bool[Meter.Channels.Count, 2];
+            _difference = new DifferenceTracker(Meter.Channels.Count);
+            Phase1Text = new string[Meter.Channels.Count,5];
+            Phase2Text = new string[Meter.Channels.Count,5];
             Disposition = (Application.Current.Properties["dispositions"] as Dictionary<string, int>);
             FontSize = 17;
             LedControlHeight = 22;
             Threshold = 10;
+            DisplayUpdated = false;
 
             // _count = 0;
         }
@@ -172,44 +176,45 @@ namespace WpfCommApp
         {
             float oldP, newP;
             bool twoMan = true;
-            for (int i = 0; i < PhaseAText[0].Length; i++)
+            for (int i = 0; i < Phase1Text.GetLength(0); i++)
             {
                 // Logic for if this is a two man commissioning team (can still be implemented for a one man team)
                 if (twoMan)
                 {
-                    if (float.TryParse(_oldPhaseAText[i], out oldP))
+                    if (float.TryParse(_oldPhase1Text[i], out oldP))
                     {
-                        newP = float.Parse(PhaseAText[0][i]);
-                        // var math = (newP - oldP) / ((oldP + newP) / 2);
+                        newP = float.Parse(Phase1Text[i,0]);
                         if (newP - oldP > Threshold)
-                            _allowCheck[0][i] = true;
+                            _allowCheck[i,0] = true;
                         else if (oldP - newP > Threshold)
                         {
                             if (Meter.Channels[i].Phase1 == false)
                             {
                                 Meter.Channels[i].Phase1 = true;
                                 Meter.Channels[i].Forced[0] = false;
+                                Globals.Logger.LogInformation($"Autodetected load for {Meter.ID} on channel {i + 1}, phase 1.");
                             }
 
-                            _allowCheck[0][i] = false;
+                            _allowCheck[i,0] = false;
                         }
                     }
 
-                    if (float.TryParse(_oldPhaseBText[i], out oldP))
+                    if (float.TryParse(_oldPhase2Text[i], out oldP))
                     {
-                        newP = float.Parse(PhaseBText[0][i]);
+                        newP = float.Parse(Phase2Text[i,0]);
                         // var math = (newP - oldP) / ((oldP + newP) / 2);
                         if (newP - oldP > Threshold)
-                            _allowCheck[1][i] = true;
+                            _allowCheck[i,1] = true;
                         else if (oldP - newP > Threshold)
                         {
                             if (Meter.Channels[i].Phase2 == false)
                             {
                                 Meter.Channels[i].Phase2 = true;
                                 Meter.Channels[i].Forced[1] = false;
+                                Globals.Logger.LogInformation($"Autodetected load for {Meter.ID} on channel {i + 1}, phase 2.");
                             }
 
-                            _allowCheck[1][i] = false;
+                            _allowCheck[i,1] = false;
                         }
                     }
                 }
@@ -218,74 +223,81 @@ namespace WpfCommApp
                 else
                 {
                     // If the old value can be parsed then continue with trying to compare the values
-                    if (float.TryParse(_oldPhaseAText[i], out oldP))
+                    if (float.TryParse(_oldPhase1Text[i], out oldP))
                     {
-                        newP = float.Parse(PhaseAText[0][i]);
+                        newP = float.Parse(Phase1Text[i,0]);
 
                         // Perform function to determine whether or not the values differ enough to
                         // register a change
-                        if (Math.Abs(oldP - newP) / ((oldP + newP) / 2) > 1)
+                        if (oldP - newP > Threshold)
                         {
-                            _diff[0][i][0]++;
-                            _diff[0][i][1] = 0;
+                            _difference.IncChannelPhaseDiffRegister(i, 0);
+                            _difference.ZeroChannelPhaseSameRegister(i, 0);
 
                             // If there are 3 changes registered and this phase has not been set
                             // then mark this phase as a suggested option and turn off the forced
                             // value for this phase
-                            if (_diff[0][i][0] > 2 && Meter.Channels[i].Phase1 == null &&
+                            if (_difference.GetChannelPhaseDiffRegister(i, 0) > 2 && Meter.Channels[i].Phase1 == null &&
                                 !Meter.Channels.Any(x => x.Phase1 == false || x.Phase2 == false))
                             {
                                 Meter.Channels[i].Phase1 = false;
                                 Meter.Channels[i].Forced[0] = false;
-                                _diff[0][i][0] = 0;
+                                _difference.ZeroChannelPhaseDiffRegister(i, 0);
+                                Globals.Logger.LogInformation($"Autodetected load for {Meter.ID} on channel {i + 1}, phase 1.");
                             }
                         }
                         else
                         {
-                            _diff[0][i][1]++;
+                            _difference.IncChannelPhaseSameRegister(i, 0);
 
                             // If there is not a significant enough of a change for 5 times in a row
                             // Zero out the difference and same registers
-                            if (_diff[0][i][1] == 5)
+                            if (_difference.GetChannelPhaseSameRegister(i, 0) == 5)
                             {
-                                _diff[0][i][0] = 0;
-                                _diff[0][i][1] = 0;
+                                _difference.ZeroChannelPhaseDiffRegister(i, 0);
+                                _difference.ZeroChannelPhaseSameRegister(i, 0);
+                                Globals.Logger.LogInformation($"Timeout limit reached for {Meter.ID} on channel {i + 1}, phase 1.");
                             }
                         }
                     }
 
-                    if (float.TryParse(_oldPhaseBText[i], out oldP))
+                    if (float.TryParse(_oldPhase2Text[i], out oldP))
                     {
-                        newP = float.Parse(PhaseBText[0][i]);
-                        if (Math.Abs(oldP - newP) / ((oldP + newP) / 2) > 1)
+                        newP = float.Parse(Phase2Text[i,0]);
+                        if (oldP - newP > Threshold)
                         {
-                            _diff[1][i][0]++;
-                            _diff[1][i][1] = 0;
+                            _difference.IncChannelPhaseDiffRegister(i, 1);
+                            _difference.ZeroChannelPhaseSameRegister(i, 1);
 
-                            if (_diff[1][i][0] > 2 && Meter.Channels[i].Phase2 == null &&
+                            if (_difference.GetChannelPhaseDiffRegister(i, 1) > 2 && Meter.Channels[i].Phase2 == null &&
                                 !Meter.Channels.Any(x => x.Phase1 == false || x.Phase2 == false))
                             {
                                 Meter.Channels[i].Phase2 = false;
                                 Meter.Channels[i].Forced[1] = false;
-                                _diff[1][i][0] = 0;
+                                _difference.ZeroChannelPhaseDiffRegister(i, 1);
+                                Globals.Logger.LogInformation($"Autodetected load for {Meter.ID} on channel {i + 1}, phase 1.");
                             }
                         }
                         else
                         {
-                            _diff[1][i][1]++;
+                            _difference.IncChannelPhaseSameRegister(i, 1);
 
-                            if (_diff[1][i][1] == 5)
+                            if (_difference.GetChannelPhaseSameRegister(i, 1) == 5)
                             {
-                                _diff[1][i][0] = 0;
-                                _diff[1][i][1] = 0;
+                                _difference.ZeroChannelPhaseDiffRegister(i, 1);
+                                _difference.ZeroChannelPhaseSameRegister(i, 1);
+                                Globals.Logger.LogInformation($"Timeout limit reached for {Meter.ID} on channel {i + 1}, phase 1.");
                             }
                         }
                     }
                 }
             }
 
-            _oldPhaseAText = PhaseAText[0].Clone() as string[];
-            _oldPhaseBText = PhaseBText[0].Clone() as string[];
+            foreach(var s in Enumerable.Range(0,Phase1Text.GetLength(0)))
+            {
+                _oldPhase1Text[s] = Phase1Text[s,0];
+                _oldPhase2Text[s] = Phase2Text[s,0];
+            }
         }
 
         /// <summary>
@@ -293,8 +305,8 @@ namespace WpfCommApp
         /// </summary>
         private void Start()
         {
-                Task.Run(PhaseDiagnostic);
-                Task.Run(Scan);
+            Globals.Tasker.Run(PhaseDiagnostic);
+            Scan();
         }
 
         /// <summary>
@@ -309,14 +321,14 @@ namespace WpfCommApp
             // User can suggest separate phase of channel if there is already another phase suggested
             bool contains = Meter.Channels.Any(channel => (channel.Phase1 == false || channel.Phase2 == false) && channel.ID != c.ID);
 
-            if (phase == "Phase1" && _allowCheck[0][c.ID - 1])
+            if (phase == "Phase1" && _allowCheck[c.ID - 1, 0])
             {
                 if (c.Phase1 == null && !contains)
                     c.Phase1 = false;
                 else if (c.Phase1 == false)
                     c.Phase1 = null;
             }
-            else if (phase == "Phase2" && _allowCheck[1][c.ID - 1])
+            else if (phase == "Phase2" && _allowCheck[c.ID - 1, 1])
             {
                 if (c.Phase2 == null && !contains)
                     c.Phase2 = false;
@@ -339,33 +351,24 @@ namespace WpfCommApp
 
                 int channel = 1;
                 int length = Meter.Channels.Count;
-                _diff[0] = new int[length][];
-                _diff[1] = new int[length][];
-                _oldPhaseAText = new string[length];
-                _oldPhaseBText = new string[length];
-                _allowCheck[0] = new bool[length];
-                _allowCheck[1] = new bool[length];
+                _oldPhase1Text = new string[length];
+                _oldPhase2Text = new string[length];
 
                 for (int i = 0; i < 5; i++)
                 {
-                    PhaseAText[i] = new string[length];
-                    PhaseBText[i] = new string[length];
-
                     if (i == 4)
                     {
                         int cnt = 0;
                         for (int j = 0; j < length; j++)
                         {
                             int res = (cnt++ % 3);
-                            PhaseAText[i][j] = res == 0 ? "A" : res == 1 ? "B" : "C";
+                            Phase1Text[j,i] = res == 0 ? "A" : res == 1 ? "B" : "C";
                             res = (cnt++ % 3);
-                            PhaseBText[i][j] = res == 0 ? "A" : res == 1 ? "B" : "C";
-                            _allowCheck[0][j] = false;
-                            _allowCheck[1][j] = false;
-                            _diff[0][j] = new int[2] { 0, 0 };
-                            _diff[1][j] = new int[2] { 0, 0 };
-                            _oldPhaseAText[j] = string.Empty;
-                            _oldPhaseBText[j] = string.Empty;
+                            Phase2Text[j,i] = res == 0 ? "A" : res == 1 ? "B" : "C";
+                            _allowCheck[j,0] = false;
+                            _allowCheck[j,1] = false;
+                            _oldPhase1Text[j] = string.Empty;
+                            _oldPhase2Text[j] = string.Empty;
                         }
                     }
                     else if (i == 3)
@@ -373,16 +376,16 @@ namespace WpfCommApp
                         // Displays the CT banks while commissioning
                         for (int j = 0; j < length; j++)
                         {
-                            PhaseAText[i][j] = channel++.ToString();
-                            PhaseBText[i][j] = channel++.ToString();
+                            Phase1Text[j,i] = channel++.ToString();
+                            Phase2Text[j,i] = channel++.ToString();
                         }
                     }
                     else
                     {
                         for (int j = 0; j < length; j++)
                         {
-                            PhaseAText[i][j] = string.Empty;
-                            PhaseBText[i][j] = string.Empty;
+                            Phase1Text[j,i] = string.Empty;
+                            Phase2Text[j,i] = string.Empty;
                         }
                     }
                 }
@@ -399,7 +402,10 @@ namespace WpfCommApp
                 // change
                 var retVal = Process();
                 if (retVal.Contains("Amps"))
+                {
+                    UpdateMessage();
                     Detection();
+                }
                 // Switches the connected meter object to this serial comm
                 else if (retVal == "switch")
                 {
@@ -440,9 +446,9 @@ namespace WpfCommApp
         {
             var tokenSource = new CancellationTokenSource();
             CancellationToken token = tokenSource.Token;
-            var task = Task.Factory.StartNew(() => _serial.PhaseDiagnostic(token), token);
+            var task = _serial.PhaseDiagnostic(token);
 
-            // Waits 5 seconds for Phase Diagnostic call to finish execution if not then display
+            // Waits X seconds for Phase Diagnostic call to finish execution if not then display
             // modal to user and attempt to reconnect
             int timeout = _serial.NewFirmware ? 7000 : 5000;
             if (!task.Wait(timeout, token))
@@ -495,7 +501,7 @@ namespace WpfCommApp
             // Iterate over each line and extract the voltage, current and kW for each channel and phase of the meter
             string buffer = task.Result;
             int meter = 0;
-            bool phaseA = true;
+            bool phase1 = true;
             foreach (string s in buffer.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries))
             {
                 string[] cols = s.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
@@ -507,98 +513,98 @@ namespace WpfCommApp
                 if (!_serial.NewFirmware)
                 {
                     meter = Convert.ToInt32(cols[0]) - 32;
-                    phaseA = cols[3] == "1" ? true : false;
-                    if (phaseA)
+                    phase1 = cols[3] == "1" ? true : false;
+                    if (phase1)
                     {
-                        PhaseAText[0][meter] = float.Parse(cols[6]).ToString("0.00");
+                        Phase1Text[meter, 0] = float.Parse(cols[6]).ToString("0.00");
                         float watts = float.Parse(cols[8]);
-                        PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
+                        Phase1Text[meter, 1] = (watts / 1000).ToString("0.00");
                         double temp = Math.Atan2(float.Parse(cols[9]), watts);
 
                         // Set the voltages for the Meter Information box
-                        if (PhaseAText[4][meter] == "A")
+                        if (Phase1Text[meter, 4] == "A")
                             VoltageA = cols[7] + " V";
-                        else if (PhaseAText[4][meter] == "B")
+                        else if (Phase1Text[meter, 4] == "B")
                             VoltageB = cols[7] + " V";
-                        else if (PhaseAText[4][meter] == "C")
+                        else if (Phase1Text[meter, 4] == "C")
                             VoltageC = cols[7] + " V";
 
                         if (double.IsNaN(temp))
-                            PhaseAText[2][meter] = "--";
+                            Phase1Text[meter, 2] = "--";
                         else
-                            PhaseAText[2][meter] = temp.ToString("0.00");
+                            Phase1Text[meter, 2] = temp.ToString("0.00");
                     }
                     else
                     {
-                        PhaseBText[0][meter] = float.Parse(cols[6]).ToString("0.00");
+                        Phase2Text[meter, 0] = float.Parse(cols[6]).ToString("0.00");
                         float watts = float.Parse(cols[8]);
-                        PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
+                        Phase2Text[meter, 1] = (watts / 1000).ToString("0.00");
                         double temp = Math.Atan2(float.Parse(cols[9]), watts);
 
                         // Set the voltages for the Meter Information box
-                        if (PhaseBText[3][meter] == "A")
+                        if (Phase2Text[meter, 3] == "A")
                             VoltageA = cols[7] + " V";
-                        else if (PhaseBText[3][meter] == "B")
+                        else if (Phase2Text[meter, 3] == "B")
                             VoltageB = cols[7] + " V";
-                        else if (PhaseBText[3][meter] == "C")
+                        else if (Phase2Text[meter, 3] == "C")
                             VoltageC = cols[7] + " V";
 
                         if (double.IsNaN(temp))
-                            PhaseBText[2][meter] = "--";
+                            Phase2Text[meter, 2] = "--";
                         else
-                            PhaseBText[2][meter] = temp.ToString("0.00");
+                            Phase2Text[meter, 2] = temp.ToString("0.00");
                     }
                 }
                 else
                 {
-                    phaseA = cols[0] == "1" ? true : false;
-                    if (phaseA)
+                    phase1 = cols[0] == "1" ? true : false;
+                    if (phase1)
                     {
-                        PhaseAText[0][meter] = float.Parse(cols[3]).ToString("0.00");
+                        Phase1Text[meter, 0] = float.Parse(cols[3]).ToString("0.00");
                         float watts = float.Parse(cols[5]);
-                        PhaseAText[1][meter] = (watts / 1000).ToString("0.00");
+                        Phase1Text[meter, 1] = (watts / 1000).ToString("0.00");
                         double temp = Math.Atan2(float.Parse(cols[6]), watts);
 
                         // Set the voltages for the Meter Information box
-                        if (PhaseAText[4][meter] == "A")
+                        if (Phase1Text[meter, 4] == "A")
                             VoltageA = cols[4] + " V";
-                        else if (PhaseAText[4][meter] == "B")
+                        else if (Phase1Text[meter, 4] == "B")
                             VoltageB = cols[4] + " V";
-                        else if (PhaseAText[4][meter] == "C")
+                        else if (Phase1Text[meter, 4] == "C")
                             VoltageC = cols[4] + " V";
 
                         if (double.IsNaN(temp))
-                            PhaseAText[2][meter] = "--";
+                            Phase1Text[meter, 2] = "--";
                         else
-                            PhaseAText[2][meter] = temp.ToString("0.00");
+                            Phase1Text[meter, 2] = temp.ToString("0.00");
                     }
                     else
                     {
-                        PhaseBText[0][meter] = float.Parse(cols[3]).ToString("0.00");
+                        Phase2Text[meter, 0] = float.Parse(cols[3]).ToString("0.00");
                         float watts = float.Parse(cols[5]);
-                        PhaseBText[1][meter] = (watts / 1000).ToString("0.00");
+                        Phase2Text[meter, 1] = (watts / 1000).ToString("0.00");
                         double temp = Math.Atan2(float.Parse(cols[6]), watts);
 
                         // Set the voltages for the Meter Information box
-                        if (PhaseBText[3][meter] == "A")
+                        if (Phase2Text[meter, 3] == "A")
                             VoltageA = cols[4] + " V";
-                        else if (PhaseBText[3][meter] == "B")
+                        else if (Phase2Text[meter, 3] == "B")
                             VoltageB = cols[4] + " V";
-                        else if (PhaseBText[3][meter] == "C")
+                        else if (Phase2Text[meter, 3] == "C")
                             VoltageC = cols[4] + " V";
 
                         if (double.IsNaN(temp))
-                            PhaseBText[2][meter] = "--";
+                            Phase2Text[meter, 2] = "--";
                         else
-                            PhaseBText[2][meter] = temp.ToString("0.00");
+                            Phase2Text[meter, 2] = temp.ToString("0.00");
 
                         meter++;
                     }
                 }
             }
 
-            OnPropertyChanged(nameof(PhaseAText));
-            OnPropertyChanged(nameof(PhaseBText));
+            OnPropertyChanged(nameof(Phase1Text));
+            OnPropertyChanged(nameof(Phase2Text));
 
             return buffer;
         }
@@ -609,10 +615,13 @@ namespace WpfCommApp
         /// </summary>
         private async Task Scan()
         {
+            var previousMsg = string.Empty;
             while (true)
             {
                 // Check if at least one phase of a channel has been commissioned
                 _channelComm = false;
+                var phaseCommissioned = false;
+                var msg = string.Empty;
                 foreach (Channel c in Meter.Channels)
                 {
                     if ((c.Phase1 == true || c.Phase2 == true) && !string.IsNullOrEmpty(c.ApartmentNumber)
@@ -621,19 +630,58 @@ namespace WpfCommApp
                         _channelComm = true;
                         break;
                     }
+                    else if ((c.Phase1 == true || c.Phase2 == true) && string.IsNullOrEmpty(msg))
+                    {
+                        phaseCommissioned = true;
+                        // Develop log messaging to help with troubleshooting
+                        if (string.IsNullOrEmpty(c.ApartmentNumber))
+                            msg = $"Channel {c.ID} requires Apartment data for {Meter.ID}";
+                        else if (string.IsNullOrEmpty(c.BreakerNumber))
+                            msg = $"Channel {c.ID} requires Breaker number for {Meter.ID}";
+                    }
                 }
+
+                // Create log message if there are no channels that have been commissioned
+                if (!_channelComm && !phaseCommissioned)
+                    msg = $"Requires at least one phase of one channel to be commissioned for {Meter.ID}";
 
                 // if at least one phase and the meter details have been entered mark as complete
                 if (_channelComm && Meter.Disposition > 0 && !string.IsNullOrEmpty(Meter.Floor) && !string.IsNullOrEmpty(Meter.Location) && !string.IsNullOrEmpty(Meter.OperationID)
-                    && Meter.NoteRequired == "Hidden")
+                    && Meter.NoteRequired == "Hidden" && !string.IsNullOrEmpty(Meter.OperationID))
                     Completed = true;
                 else
                     Completed = false;
 
+                // Create log message if the page has not been completed
+                // and the log message is still empty
+                if (!Completed && string.IsNullOrEmpty(msg))
+                {
+                    if (string.IsNullOrEmpty(Meter.Floor))
+                        msg = $"Missing floor for {Meter.ID}";
+                    else if (string.IsNullOrEmpty(Meter.Location))
+                        msg = $"Missing location for {Meter.ID}";
+                    else if (string.IsNullOrEmpty(Meter.OperationID))
+                        msg = $"Missing operation ID for {Meter.ID}";
+                    else if (Meter.Disposition < 0)
+                        msg = $"Missing Meter disposition for {Meter.ID}";
+                    else if (Meter.NoteRequired != "Hidden")
+                        msg = $"Missing mandatory note due to disposition for {Meter.ID}";
+                }
+                else if (Completed)
+                    msg = $"Next page allowed for {Meter.ID}";
+
+                // Write log message if different from previous message
+                // and message is not empty
+                if (previousMsg != msg && !string.IsNullOrEmpty(msg))
+                {
+                    Globals.Logger.LogInformation(msg);
+                    previousMsg = msg;
+                }
+
                 if (_break)
                     break;
 
-                Thread.Sleep(1500);
+                await Task.Delay(1500);
             }
         }
 
@@ -643,6 +691,13 @@ namespace WpfCommApp
         private void Stop()
         {
             _break = true;
+        }
+
+        private async Task UpdateMessage()
+        {
+            DisplayUpdated = true;
+            await Task.Delay(2500);
+            DisplayUpdated = false;
         }
 
         #endregion

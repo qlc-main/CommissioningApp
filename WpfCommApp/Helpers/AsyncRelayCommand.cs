@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -55,7 +56,7 @@ namespace WpfCommApp
                 {
                     _isExecuting = true;
                     RaiseCanExecuteChanged();
-                    await Task.Run(_execute);
+                    await Globals.Tasker.Run(_execute);
                 }
                 finally
                 {

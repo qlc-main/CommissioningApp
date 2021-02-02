@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -126,7 +127,7 @@ namespace WpfCommApp
 
         private void Start()
         {
-            Task.Run(Watcher);
+            Globals.Tasker.Run(Watcher);
         }
 
         private void Stop()
@@ -139,19 +140,39 @@ namespace WpfCommApp
             // loop here until break value is reset before entering loop
             while (_break) { }
 
+            var previousMsg = string.Empty;
             while (true)
             {
-                bool stop = true;
+                bool commissioned = true;
+                string msg = string.Empty;
                 foreach (Channel c in Meter.Channels)
                     if ((c.Phase1 == true && c.Forced[0] && string.IsNullOrEmpty(c.Reason[0])) ||
                         (c.Phase2 == true && c.Forced[1] && string.IsNullOrEmpty(c.Reason[1])))
                     {
-                        stop = false;
+                        // Logging message for why forward progress is disabled
+                        msg = $"Meter {Meter.ID} Channel {c.ID} requires ";
+                        if (c.Forced[0] && string.IsNullOrEmpty(c.Reason[0]))
+                            msg += "reason for phase1";
+                        else if (c.Forced[0] && string.IsNullOrEmpty(c.Reason[0]))
+                            msg += "reason for phase2";
+
+                        commissioned = false;
                         break;
                     }
 
-                Completed = stop;
-                Meter.Commissioned = stop;
+                // Logging message to confirm availability of forward progress
+                if (commissioned)
+                    msg = $"Next page allowed for {Meter.ID}";
+
+                // Log message if different and message is not empty
+                if (previousMsg != msg && !string.IsNullOrEmpty(msg))
+                {
+                    Globals.Logger.LogInformation(msg);
+                    previousMsg = msg;
+                }
+
+                Completed = commissioned;
+                Meter.Commissioned = commissioned;
                 if (_break)
                     break;
             }

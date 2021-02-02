@@ -15,6 +15,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Net;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -212,7 +213,7 @@ namespace WpfCommApp
                     successMeters.Add(kvp.Key);
                 }
 
-                System.Threading.Thread.Sleep(2500);
+                await Task.Delay(2500);
             }
 
             string windowMessage = LoggingInfo(successMeters, failedMeters, infoMeters);
@@ -340,7 +341,7 @@ namespace WpfCommApp
         private void CRMWrapper(PasswordBox p)
         {
             _password = p.Password;
-            Task.Run(CreateCRM);
+            Globals.Tasker.Run(CreateCRM);
         }
 
         /// <summary>

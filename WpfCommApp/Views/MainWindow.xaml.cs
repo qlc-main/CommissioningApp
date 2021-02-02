@@ -14,6 +14,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Hellang.MessageBus;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -54,7 +55,7 @@ namespace WpfCommApp
                 else if (message.Command == "closeTab")
                     m.CloseTab(message.Args as Tuple<string, string>, true);
                 else if (message.Command == "switchMeters")
-                    Task.Run(m.SwitchMeters);
+                    Globals.Tasker.Run(m.SwitchMeters);
                 else if (message.Command == "newMeter")
                     m.CreateNewMeter();
                 else

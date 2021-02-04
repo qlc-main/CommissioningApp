@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using WpfCommApp.Helpers;
 
 namespace WpfCommApp
 {
@@ -22,9 +23,9 @@ namespace WpfCommApp
             Current.Properties["MessageBus"] =
                     new MessageBus(uiThreadMarshaller);
             // Collection of active serial objects
-            Current.Properties["serial"] = new Dictionary<string, SerialComm>();
+            Globals.Serials = new Dictionary<string, SerialComm>();
             // Collection of meter objects that have been imported or created during program execution
-            Current.Properties["meters"] = new Dictionary<string, Meter>();
+            Globals.Meters = new Dictionary<string, Meter>();
             // CT Types available for commissioning
             Current.Properties["cttypes"] = new string[3] { "flex", "solid", "split" };
             // Dispositions options available to the user
@@ -38,6 +39,17 @@ namespace WpfCommApp
                                                       { "Reversed Phase(s)", 79}
                                                     };
             Current.DispatcherUnhandledException += new DispatcherUnhandledExceptionEventHandler(AppUnhandledException);
+
+            // Create the directories that are needed for the application
+            var currDir = Directory.GetCurrentDirectory();
+            if (!Directory.Exists($@"{currDir}\ToUpload"))
+                Directory.CreateDirectory($@"{currDir}\ToUpload");
+            if (!Directory.Exists($@"{currDir}\Uploaded"))
+                Directory.CreateDirectory($@"{currDir}\Uploaded");
+            if (!Directory.Exists($@"{currDir}\Logs"))
+                Directory.CreateDirectory($@"{currDir}\Logs");
+            if (!Directory.Exists($@"{currDir}\ErrorLogs"))
+                Directory.CreateDirectory($@"{currDir}\ErrorLogs");
         }
 
         private void AppUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -53,7 +65,7 @@ namespace WpfCommApp
         {
             string dir = String.Format("{0}\\ToUpload", Directory.GetCurrentDirectory());
             string logDir = String.Format("{0}\\Logs", Directory.GetCurrentDirectory());
-            foreach (Meter m in (Current.Properties["meters"] as Dictionary<string, Meter>).Values)
+            foreach (Meter m in Globals.Meters.Values)
                 m.Save(dir);
 
             string errorMessage = string.Format("Application error occurred. Here are the details: {0}",

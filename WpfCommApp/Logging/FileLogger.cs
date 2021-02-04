@@ -40,11 +40,8 @@ namespace WpfCommApp.Logging
 
         public void Log(string message, LogLevel level)
         {
-            // Get current time
-            var currentTime = DateTimeOffset.Now.ToString("yyyy-MM-dd hh:mm:ss");
-
             // Prepend the time to the log if desired
-            var timeLogString = LogTime ? $"[{ currentTime}] " : "";
+            var timeLogString = LogTime ? $"[{ DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss")}] " : "";
 
             // Write the message
             Globals.File.WriteTextToFileAsync($"{timeLogString}{message}{Environment.NewLine}", FilePath, append: true);

@@ -3,6 +3,7 @@ using Hellang.MessageBus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -16,19 +17,24 @@ namespace WpfCommApp
 
         #region Fields
 
+        private bool _allFunctionsStopped;
         private bool _break;
+        private CancellationTokenSource _cts;
         private bool _channelComm;
         private bool[,] _allowCheck;
         private bool _completed;
         private DifferenceTracker _difference;
         private string _id;
         private string _idx;
+        private int _numCorrupted;
         private string[] _oldPhase1Text;
         private string[] _oldPhase2Text;
+        private Task _task1;
+        private Task _task2;
 
         private ICommand _mp;
         private ICommand _pd;
-        private ICommand _spd;
+        private IAsyncCommand _spd;
 
         private Meter _meter;
         private SerialComm _serial;
@@ -36,6 +42,19 @@ namespace WpfCommApp
         #endregion
 
         #region Properties
+
+        public bool AllFunctionsStopped
+        {
+            get { return _allFunctionsStopped; }
+            set
+            {
+                if (_allFunctionsStopped != value)
+                {
+                    _allFunctionsStopped = value;
+                    OnPropertyChanged(nameof(AllFunctionsStopped));
+                }
+            }
+        }
 
         public int LedControlHeight { get; set; }
 
@@ -108,12 +127,12 @@ namespace WpfCommApp
             }
         }
 
-        public ICommand StopAsync
+        public IAsyncCommand StopAsync
         {
             get
             {
                 if (_spd == null)
-                    _spd = new RelayCommand(p => Stop());
+                    _spd = new AsyncRelayCommand(Stop);
 
                 return _spd;
             }
@@ -144,7 +163,7 @@ namespace WpfCommApp
         {
             _id = id;
             _idx = idx;
-            Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
+            Meter = Globals.Meters[_id];
             _allowCheck = new bool[Meter.Channels.Count, 2];
             _difference = new DifferenceTracker(Meter.Channels.Count);
             Phase1Text = new string[Meter.Channels.Count,5];
@@ -164,6 +183,12 @@ namespace WpfCommApp
 
         #region Public 
 
+        public async void Dispose()
+        {
+            if (_cts != null)
+                _cts.Dispose();
+        }
+
         #endregion
 
         #region Private
@@ -181,9 +206,9 @@ namespace WpfCommApp
                 // Logic for if this is a two man commissioning team (can still be implemented for a one man team)
                 if (twoMan)
                 {
-                    if (float.TryParse(_oldPhase1Text[i], out oldP))
+                    if (float.TryParse(_oldPhase1Text[i], out oldP) &&
+                        float.TryParse(Phase1Text[i, 0], out newP))
                     {
-                        newP = float.Parse(Phase1Text[i,0]);
                         if (newP - oldP > Threshold)
                             _allowCheck[i,0] = true;
                         else if (oldP - newP > Threshold)
@@ -199,9 +224,9 @@ namespace WpfCommApp
                         }
                     }
 
-                    if (float.TryParse(_oldPhase2Text[i], out oldP))
+                    if (float.TryParse(_oldPhase2Text[i], out oldP) &&
+                        float.TryParse(Phase2Text[i, 0], out newP))
                     {
-                        newP = float.Parse(Phase2Text[i,0]);
                         // var math = (newP - oldP) / ((oldP + newP) / 2);
                         if (newP - oldP > Threshold)
                             _allowCheck[i,1] = true;
@@ -223,9 +248,9 @@ namespace WpfCommApp
                 else
                 {
                     // If the old value can be parsed then continue with trying to compare the values
-                    if (float.TryParse(_oldPhase1Text[i], out oldP))
+                    if (float.TryParse(_oldPhase1Text[i], out oldP) &&
+                        float.TryParse(Phase1Text[i, 0], out newP))
                     {
-                        newP = float.Parse(Phase1Text[i,0]);
 
                         // Perform function to determine whether or not the values differ enough to
                         // register a change
@@ -261,9 +286,9 @@ namespace WpfCommApp
                         }
                     }
 
-                    if (float.TryParse(_oldPhase2Text[i], out oldP))
+                    if (float.TryParse(_oldPhase2Text[i], out oldP) &&
+                        float.TryParse(Phase2Text[i, 0], out newP))
                     {
-                        newP = float.Parse(Phase2Text[i,0]);
                         if (oldP - newP > Threshold)
                         {
                             _difference.IncChannelPhaseDiffRegister(i, 1);
@@ -305,8 +330,11 @@ namespace WpfCommApp
         /// </summary>
         private void Start()
         {
-            Globals.Tasker.Run(PhaseDiagnostic);
-            Scan();
+            _cts = new CancellationTokenSource();
+            _numCorrupted = 0;
+            _task1 = Globals.Tasker.Run(PhaseDiagnostic);
+            _task2 = Globals.Tasker.Run(Scan);
+            AllFunctionsStopped = false;
         }
 
         /// <summary>
@@ -347,8 +375,6 @@ namespace WpfCommApp
             // Initialize variables if this is the first time 
             if (_serial == null)
             {
-                _serial = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>)[_idx];
-
                 int channel = 1;
                 int length = Meter.Channels.Count;
                 _oldPhase1Text = new string[length];
@@ -362,11 +388,11 @@ namespace WpfCommApp
                         for (int j = 0; j < length; j++)
                         {
                             int res = (cnt++ % 3);
-                            Phase1Text[j,i] = res == 0 ? "A" : res == 1 ? "B" : "C";
+                            Phase1Text[j, i] = res == 0 ? "A" : res == 1 ? "B" : "C";
                             res = (cnt++ % 3);
-                            Phase2Text[j,i] = res == 0 ? "A" : res == 1 ? "B" : "C";
-                            _allowCheck[j,0] = false;
-                            _allowCheck[j,1] = false;
+                            Phase2Text[j, i] = res == 0 ? "A" : res == 1 ? "B" : "C";
+                            _allowCheck[j, 0] = false;
+                            _allowCheck[j, 1] = false;
                             _oldPhase1Text[j] = string.Empty;
                             _oldPhase2Text[j] = string.Empty;
                         }
@@ -376,20 +402,23 @@ namespace WpfCommApp
                         // Displays the CT banks while commissioning
                         for (int j = 0; j < length; j++)
                         {
-                            Phase1Text[j,i] = channel++.ToString();
-                            Phase2Text[j,i] = channel++.ToString();
+                            Phase1Text[j, i] = channel++.ToString();
+                            Phase2Text[j, i] = channel++.ToString();
                         }
                     }
                     else
                     {
                         for (int j = 0; j < length; j++)
                         {
-                            Phase1Text[j,i] = string.Empty;
-                            Phase2Text[j,i] = string.Empty;
+                            Phase1Text[j, i] = string.Empty;
+                            Phase2Text[j, i] = string.Empty;
                         }
                     }
                 }
             }
+
+            // Reset the serial
+            _serial = Globals.Serials[_idx];
 
             // wait for the value to be reset
             while (_break) { }
@@ -420,7 +449,7 @@ namespace WpfCommApp
                 // The Process function returns false when user closed the Attempting to reconnect
                 // popup window or if the meter was switched so this function forces
                 // the user to go back a page and cancels the phase diagnostic reads
-                else if (string.IsNullOrEmpty(retVal))
+                else if (!_break && string.IsNullOrEmpty(retVal))
                 {
                     (Application.Current.Properties["MessageBus"] as MessageBus)
                             .Publish(new MessageCenter("backward"));
@@ -444,8 +473,7 @@ namespace WpfCommApp
         /// <returns>Boolean indicating success of Phase Diagnostic call</returns>
         private string Process()
         {
-            var tokenSource = new CancellationTokenSource();
-            CancellationToken token = tokenSource.Token;
+            CancellationToken token = _cts.Token;
             var task = _serial.PhaseDiagnostic(token);
 
             // Waits X seconds for Phase Diagnostic call to finish execution if not then display
@@ -455,10 +483,10 @@ namespace WpfCommApp
             {
                 // Create thread that launches modal window for user and continues to poll
                 // original process to determine if it has completed
-                Thread t = new Thread(new ThreadStart(async () =>
+                Thread t = new Thread(new ThreadStart(() =>
                 {
                     InfoView info = null;
-                    InfoViewModel ifvm = new InfoViewModel(task, token, tokenSource, "Serial Connection Lost", "Attempting to Reconnect");
+                    InfoViewModel ifvm = new InfoViewModel(task, _cts, "Serial Connection Lost", "Attempting to Reconnect");
 
                     Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -472,7 +500,7 @@ namespace WpfCommApp
                         info.Show();
                     });
 
-                    var monitor = await ifvm.Poll();
+                    var monitor = ifvm.Poll();
                     if (monitor)
                     {
                         // Close the window if the program has successfully re-established communication
@@ -502,6 +530,15 @@ namespace WpfCommApp
             string buffer = task.Result;
             int meter = 0;
             bool phase1 = true;
+            int lineNumber = 0;
+            bool corrupted = false;
+            float voltageASum = 0.0f;
+            float voltageBSum = 0.0f;
+            float voltageCSum = 0.0f;
+            float voltageANum = 0;
+            float voltageBNum = 0;
+            float voltageCNum = 0;
+
             foreach (string s in buffer.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries))
             {
                 string[] cols = s.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
@@ -512,99 +549,335 @@ namespace WpfCommApp
 
                 if (!_serial.NewFirmware)
                 {
-                    meter = Convert.ToInt32(cols[0]) - 32;
-                    phase1 = cols[3] == "1" ? true : false;
-                    if (phase1)
+                    if (Regex.IsMatch(cols[0], "^(3[2-9]|4[0-3])$") && Regex.IsMatch(cols[3], "^[12]$") && Convert.ToInt32(cols[0]) - 32 == lineNumber / 2)
                     {
-                        Phase1Text[meter, 0] = float.Parse(cols[6]).ToString("0.00");
-                        float watts = float.Parse(cols[8]);
-                        Phase1Text[meter, 1] = (watts / 1000).ToString("0.00");
-                        double temp = Math.Atan2(float.Parse(cols[9]), watts);
+                        meter = Convert.ToInt32(cols[0]) - 32;
+                        phase1 = cols[3] == "1" ? true : false;
 
-                        // Set the voltages for the Meter Information box
-                        if (Phase1Text[meter, 4] == "A")
-                            VoltageA = cols[7] + " V";
-                        else if (Phase1Text[meter, 4] == "B")
-                            VoltageB = cols[7] + " V";
-                        else if (Phase1Text[meter, 4] == "C")
-                            VoltageC = cols[7] + " V";
+                        if (phase1)
+                        {
+                            if (Regex.IsMatch(cols[6], @"^\d*\.\d*$"))
+                                Phase1Text[meter, 0] = float.Parse(cols[6]).ToString("0.00");
+                            else
+                            {
+                                Phase1Text[meter, 0] = "--";
+                                corrupted = true;
+                            }
 
-                        if (double.IsNaN(temp))
-                            Phase1Text[meter, 2] = "--";
+                            if (Regex.IsMatch(cols[8], @"^\d*\.\d*$"))
+                            {
+                                float watts = float.Parse(cols[8]);
+                                Phase1Text[meter, 1] = (watts / 1000).ToString("0.00");
+
+                                if (Regex.IsMatch(cols[9], @"^\d*\.\d*$"))
+                                {
+                                    double temp = Math.Atan2(float.Parse(cols[9]), watts);
+
+                                    if (double.IsNaN(temp))
+                                        Phase1Text[meter, 2] = "--";
+                                    else
+                                        Phase1Text[meter, 2] = temp.ToString("0.00");
+                                }
+                                else
+                                {
+                                    Phase1Text[meter, 2] = "--";
+                                    corrupted = true;
+                                }
+                            }
+                            else
+                            {
+                                Phase1Text[meter, 1] = "--";
+                                Phase1Text[meter, 2] = "--";
+                                corrupted = true;
+                            }
+
+                            // Set the voltages for the Meter Information box
+                            if (Regex.IsMatch(cols[7], @"^\d*\.\d*$"))
+                            {
+                                if (Phase1Text[meter, 4] == "A")
+                                {
+                                    voltageASum += float.Parse(cols[7]);
+                                    voltageANum++;
+                                }
+                                else if (Phase1Text[meter, 4] == "B")
+                                {
+                                    voltageBSum += float.Parse(cols[7]);
+                                    voltageBNum++;
+                                }
+                                else if (Phase1Text[meter, 4] == "C")
+                                {
+                                    voltageCSum += float.Parse(cols[7]);
+                                    voltageCNum++;
+                                }
+                            }
+                            else
+                                corrupted = true;
+                        }
                         else
-                            Phase1Text[meter, 2] = temp.ToString("0.00");
+                        {
+                            if (Regex.IsMatch(cols[6], @"^\d*\.\d*$"))
+                                Phase2Text[meter, 0] = float.Parse(cols[6]).ToString("0.00");
+                            else
+                            {
+                                Phase2Text[meter, 0] = "--";
+                                corrupted = true;
+                            }
+
+                            if (Regex.IsMatch(cols[8], @"^\d*\.\d*$"))
+                            {
+                                float watts = float.Parse(cols[8]);
+                                Phase2Text[meter, 1] = (watts / 1000).ToString("0.00");
+
+                                if (Regex.IsMatch(cols[9], @"^\d*\.\d*$"))
+                                {
+                                    double temp = Math.Atan2(float.Parse(cols[9]), watts);
+
+                                    if (double.IsNaN(temp))
+                                        Phase2Text[meter, 2] = "--";
+                                    else
+                                        Phase2Text[meter, 2] = temp.ToString("0.00");
+                                }
+                                else
+                                {
+                                    Phase2Text[meter, 2] = "--";
+                                    corrupted = true;
+                                }
+                            }
+                            else
+                            {
+                                Phase2Text[meter, 1] = "--";
+                                Phase2Text[meter, 2] = "--";
+                                corrupted = true;
+                            }
+
+                            // Set the voltages for the Meter Information box
+                            if (Regex.IsMatch(cols[7], @"^\d*\.\d*$"))
+                            {
+                                if (Phase2Text[meter, 4] == "A")
+                                {
+                                    voltageASum += float.Parse(cols[7]);
+                                    voltageANum++;
+                                }
+                                else if (Phase2Text[meter, 4] == "B")
+                                {
+                                    voltageBSum += float.Parse(cols[7]);
+                                    voltageBNum++;
+                                }
+                                else if (Phase2Text[meter, 4] == "C")
+                                {
+                                    voltageCSum += float.Parse(cols[7]);
+                                    voltageCNum++;
+                                }
+                            }
+                            else
+                                corrupted = true;
+                        }
                     }
                     else
                     {
-                        Phase2Text[meter, 0] = float.Parse(cols[6]).ToString("0.00");
-                        float watts = float.Parse(cols[8]);
-                        Phase2Text[meter, 1] = (watts / 1000).ToString("0.00");
-                        double temp = Math.Atan2(float.Parse(cols[9]), watts);
-
-                        // Set the voltages for the Meter Information box
-                        if (Phase2Text[meter, 3] == "A")
-                            VoltageA = cols[7] + " V";
-                        else if (Phase2Text[meter, 3] == "B")
-                            VoltageB = cols[7] + " V";
-                        else if (Phase2Text[meter, 3] == "C")
-                            VoltageC = cols[7] + " V";
-
-                        if (double.IsNaN(temp))
-                            Phase2Text[meter, 2] = "--";
+                        if (lineNumber % 2 == 0)
+                        {
+                            Phase1Text[lineNumber / 2, 0] = "--";   // Amps
+                            Phase1Text[lineNumber / 2, 1] = "--";   // Watts
+                            Phase1Text[lineNumber / 2, 2] = "--";   // PF
+                        }
                         else
-                            Phase2Text[meter, 2] = temp.ToString("0.00");
+                        {
+                            Phase2Text[lineNumber / 2, 0] = "--";   // Amps
+                            Phase2Text[lineNumber / 2, 1] = "--";   // Watts
+                            Phase2Text[lineNumber / 2, 2] = "--";   // PF
+                        }
+
+                        corrupted = true;
                     }
                 }
                 else
                 {
-                    phase1 = cols[0] == "1" ? true : false;
-                    if (phase1)
+                    if (Regex.IsMatch(cols[0], "^[12]$"))
                     {
-                        Phase1Text[meter, 0] = float.Parse(cols[3]).ToString("0.00");
-                        float watts = float.Parse(cols[5]);
-                        Phase1Text[meter, 1] = (watts / 1000).ToString("0.00");
-                        double temp = Math.Atan2(float.Parse(cols[6]), watts);
+                        phase1 = cols[0] == "1" ? true : false;
 
-                        // Set the voltages for the Meter Information box
-                        if (Phase1Text[meter, 4] == "A")
-                            VoltageA = cols[4] + " V";
-                        else if (Phase1Text[meter, 4] == "B")
-                            VoltageB = cols[4] + " V";
-                        else if (Phase1Text[meter, 4] == "C")
-                            VoltageC = cols[4] + " V";
+                        if (phase1)
+                        {
+                            if (Regex.IsMatch(cols[3], @"^\d*\.\d*$"))
+                                Phase1Text[meter, 0] = float.Parse(cols[3]).ToString("0.00");
+                            else
+                            {
+                                Phase1Text[meter, 0] = "--";
+                                corrupted = true;
+                            }
 
-                        if (double.IsNaN(temp))
-                            Phase1Text[meter, 2] = "--";
+                            if (Regex.IsMatch(cols[5], @"^\d*\.\d*$"))
+                            {
+                                float watts = float.Parse(cols[5]);
+                                Phase1Text[meter, 1] = (watts / 1000).ToString("0.00");
+
+                                if (Regex.IsMatch(cols[6], @"^\d*\.\d*$"))
+                                {
+                                    double temp = Math.Atan2(float.Parse(cols[6]), watts);
+                                    if (double.IsNaN(temp))
+                                        Phase1Text[meter, 2] = "--";
+                                    else
+                                        Phase1Text[meter, 2] = temp.ToString("0.00");
+                                }
+                                else
+                                {
+                                    Phase1Text[meter, 2] = "--";
+                                    corrupted = true;
+                                }
+                            }
+                            else
+                            {
+                                Phase1Text[meter, 1] = "--";
+                                Phase1Text[meter, 2] = "--";
+                                corrupted = true;
+                            }
+
+                            // Set the voltages for the Meter Information box
+                            if (Regex.IsMatch(cols[4], @"^\d*\.\d*$"))
+                            {
+                                if (Phase1Text[meter, 4] == "A")
+                                {
+                                    voltageASum += float.Parse(cols[4]);
+                                    voltageANum++;
+                                }
+                                else if (Phase1Text[meter, 4] == "B")
+                                {
+                                    voltageBSum += float.Parse(cols[4]);
+                                    voltageBNum++;
+                                }
+                                else if (Phase1Text[meter, 4] == "C")
+                                {
+                                    voltageCSum += float.Parse(cols[4]);
+                                    voltageCNum++;
+                                }
+                            }
+                            else
+                                corrupted = true;
+                        }
                         else
-                            Phase1Text[meter, 2] = temp.ToString("0.00");
+                        {
+                            if (Regex.IsMatch(cols[3], @"^\d*\.\d*$"))
+                                Phase2Text[meter, 0] = float.Parse(cols[3]).ToString("0.00");
+                            else
+                            {
+                                Phase2Text[meter, 0] = "--";
+                                corrupted = true;
+                            }
+
+                            if (Regex.IsMatch(cols[5], @"^\d*\.\d*$"))
+                            {
+                                float watts = float.Parse(cols[5]);
+                                Phase2Text[meter, 1] = (watts / 1000).ToString("0.00");
+
+                                if (Regex.IsMatch(cols[6], @"^\d*\.\d*$"))
+                                {
+                                    double temp = Math.Atan2(float.Parse(cols[6]), watts);
+                                    if (double.IsNaN(temp))
+                                        Phase2Text[meter, 2] = "--";
+                                    else
+                                        Phase2Text[meter, 2] = temp.ToString("0.00");
+                                }
+                                else
+                                {
+                                    Phase2Text[meter, 2] = "--";
+                                    corrupted = true;
+                                }
+                            }
+                            else
+                            {
+                                Phase2Text[meter, 1] = "--";
+                                Phase2Text[meter, 2] = "--";
+                                corrupted = true;
+                            }
+
+                            // Set the voltages for the Meter Information box
+                            if (Regex.IsMatch(cols[4], @"^\d*\.\d*$"))
+                            {
+                                if (Phase2Text[meter, 4] == "A")
+                                {
+                                    voltageASum += float.Parse(cols[4]);
+                                    voltageANum++;
+                                }
+                                else if (Phase2Text[meter, 4] == "B")
+                                {
+                                    voltageBSum += float.Parse(cols[4]);
+                                    voltageBNum++;
+                                }
+                                else if (Phase2Text[meter, 4] == "C")
+                                {
+                                    voltageCSum += float.Parse(cols[4]);
+                                    voltageCNum++;
+                                }
+                            }
+                            else
+                                corrupted = true;
+
+                            meter++;
+                        }
                     }
                     else
                     {
-                        Phase2Text[meter, 0] = float.Parse(cols[3]).ToString("0.00");
-                        float watts = float.Parse(cols[5]);
-                        Phase2Text[meter, 1] = (watts / 1000).ToString("0.00");
-                        double temp = Math.Atan2(float.Parse(cols[6]), watts);
-
-                        // Set the voltages for the Meter Information box
-                        if (Phase2Text[meter, 3] == "A")
-                            VoltageA = cols[4] + " V";
-                        else if (Phase2Text[meter, 3] == "B")
-                            VoltageB = cols[4] + " V";
-                        else if (Phase2Text[meter, 3] == "C")
-                            VoltageC = cols[4] + " V";
-
-                        if (double.IsNaN(temp))
-                            Phase2Text[meter, 2] = "--";
+                        if (lineNumber % 2 == 0)
+                        {
+                            Phase1Text[lineNumber / 2, 0] = "--";   // Amps
+                            Phase1Text[lineNumber / 2, 1] = "--";   // Watts
+                            Phase1Text[lineNumber / 2, 2] = "--";   // PF
+                        }
                         else
-                            Phase2Text[meter, 2] = temp.ToString("0.00");
+                        {
+                            Phase2Text[lineNumber / 2, 0] = "--";   // Amps
+                            Phase2Text[lineNumber / 2, 1] = "--";   // Watts
+                            Phase2Text[lineNumber / 2, 2] = "--";   // PF
+                        }
 
-                        meter++;
+                        corrupted = true;
                     }
                 }
+
+                lineNumber++;
             }
+
+            // Display average of Voltages instead of last voltage received
+            // aids in troubleshooting
+            VoltageA = (voltageASum / voltageANum).ToString("0.00") + " V";
+            VoltageB = (voltageBSum / voltageBNum).ToString("0.00") + " V";
+            VoltageC = (voltageCSum / voltageCNum).ToString("0.00") + " V";
 
             OnPropertyChanged(nameof(Phase1Text));
             OnPropertyChanged(nameof(Phase2Text));
+
+            // If present data is corrupted, increment corrupted counter
+            if (corrupted)
+                _numCorrupted++;
+            // Reset corrupted counter if data isn't corrupt
+            else
+                _numCorrupted = 0;
+
+            // If data is corrupt, 3 times in a row
+            // display modal to user and stop reading
+            if (_numCorrupted == 3)
+            {
+                InfoView info = null;
+                InfoViewModel ifvm = new InfoViewModel("Corrupted Data", "Corrupted Data has been received multiple times. Please check set up. Pausing serial port reads.");
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    info = new InfoView
+                    {
+                        Owner = Application.Current.MainWindow,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        DataContext = ifvm
+                    };
+
+                    info.Show();
+                });
+
+                // Stops async processes and closes serial port
+                // but leaves current tab open
+                _break = true;
+                _serial.Close();
+            }
 
             return buffer;
         }
@@ -688,9 +961,20 @@ namespace WpfCommApp
         /// <summary>
         /// Stops the Phase Diagnostic call loop
         /// </summary>
-        private void Stop()
+        private async Task Stop()
         {
+            // Requests cancellation
+            _cts.Cancel();
+
+            // Stops all background tasks from executing
             _break = true;
+
+            // Waits until all background tasks are complete
+            while (!_task1.IsCompleted || !_task2.IsCompleted)
+                await Task.Delay(500);
+            _break = false;
+            _cts.Dispose();
+            AllFunctionsStopped = true;
         }
 
         private async Task UpdateMessage()

@@ -150,7 +150,7 @@ namespace WpfCommApp.Async
 
                 // Log message to debug level 
                 // (may not be an issue but we don't want to miss anything in debug)
-                Globals.Logger.Log($"Crash in {nameof(AwaitAsync)}. {ex.Message}", LogLevel.Debug);
+                Globals.Logger.LogError($"Crash in {nameof(AwaitAsync)}. {ex.Message}");
 
                 // Break debugger
                 Debugger.Break();

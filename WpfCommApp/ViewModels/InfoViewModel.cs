@@ -16,7 +16,6 @@ namespace WpfCommApp
 
         private ICommand _closing;
 
-        private CancellationToken _ct;
         private CancellationTokenSource _cts;
         private InfoView _view;
 
@@ -79,9 +78,8 @@ namespace WpfCommApp
 
         #region Constructors
 
-        public InfoViewModel(Task task, CancellationToken ct, CancellationTokenSource cts, string title, string text)
+        public InfoViewModel(Task task, CancellationTokenSource cts, string title, string text)
         {
-            _ct = ct;
             _cts = cts;
             _run = true;
             _startText = text;
@@ -102,7 +100,7 @@ namespace WpfCommApp
 
         #region Methods
 
-        public async Task<bool> Poll()
+        public bool Poll()
         {
             if (Task == null)
             {
@@ -126,7 +124,7 @@ namespace WpfCommApp
                 }
                 finally
                 {
-                    _cts.Dispose();
+                    // do nothing
                 }
 
                 if (!_run)
@@ -141,7 +139,7 @@ namespace WpfCommApp
 
         public void StopPolling()
         {
-            if (_cts != null)
+            if (_cts != null && UserClosedWindow)
                 _cts.Cancel();
             _run = false;
         }

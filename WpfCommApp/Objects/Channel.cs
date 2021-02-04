@@ -75,7 +75,7 @@ namespace WpfCommApp
             get { return _ctType; }
             set
             {
-                if (_ctType != value)
+                if (_ctType != value && value != null)
                 {
                     _ctType = value;
                     OnPropertyChanged(nameof(CTType));

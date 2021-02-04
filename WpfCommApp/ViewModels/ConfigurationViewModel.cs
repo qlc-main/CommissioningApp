@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Input;
 using WpfCommApp.Managers;
 using WpfCommApp.Helpers;
+using System.Threading.Tasks;
 
 namespace WpfCommApp
 {
@@ -11,22 +12,37 @@ namespace WpfCommApp
     {
         #region Fields
 
+        private bool _allFunctionsStopped;
         private bool _break;
         private int _channelSize;
         private string _comboBoxText;
         private bool _completed;
         private string _id;
+        private Task _task;
 
         private ICommand _notCommissioned;
         private ICommand _setPrimary;
         private ICommand _start;
-        private ICommand _stop;
+        private IAsyncCommand _stop;
 
         private Meter _meter;
 
         #endregion
 
         #region Properties
+
+        public bool AllFunctionsStopped
+        {
+            get { return _allFunctionsStopped; }
+            set
+            {
+                if (_allFunctionsStopped != value)
+                {
+                    _allFunctionsStopped = value;
+                    OnPropertyChanged(nameof(AllFunctionsStopped));
+                }
+            }
+        }
 
         public int ChannelSize
         {
@@ -136,7 +152,7 @@ namespace WpfCommApp
             get
             {
                 if (_stop == null)
-                    _stop = new RelayCommand(p => Stop());
+                    _stop = new AsyncRelayCommand(Stop);
 
                 return _stop;
             }
@@ -154,7 +170,7 @@ namespace WpfCommApp
         {
             _id = id;
             _comboBoxText = "100";
-            Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
+            Meter = Globals.Meters[_id];
             ChannelSize = Meter.Size;
             CTTypes = (Application.Current.Properties["cttypes"] as string[]);
             FontSize = 19;
@@ -166,9 +182,22 @@ namespace WpfCommApp
 
         #region Public
 
+        public async void Dispose()
+        {
+        }
+
         #endregion
 
         #region Private
+
+        private void ChannelChanged()
+        {
+            int total = 0;
+            foreach (Channel c in Meter.Channels)
+                if (c.CTType != "" || c.Primary != "" || c.Secondary != "")
+                    total++;
+            ChannelSize = total;
+        }
 
         private void PrimaryConfiguration()
         {
@@ -183,12 +212,16 @@ namespace WpfCommApp
 
         private void Start()
         {
-            Globals.Tasker.Run(Watcher);
+            _task = Globals.Tasker.Run(Watcher);
+            AllFunctionsStopped = false;
         }
 
-        private void Stop()
+        private async Task Stop()
         {
             _break = true;
+            while (!_task.IsCompleted)
+                await Task.Delay(500);
+            AllFunctionsStopped = true;
         }
 
         /// <summary>
@@ -205,11 +238,7 @@ namespace WpfCommApp
             Globals.Logger.LogInformation($"Marked channel {id} as uncommissioned");
 
             // Modifies the ChannelSize property given the number of uncommissioned channels
-            int total = 0;
-            foreach (Channel c in Meter.Channels)
-                if (c.CTType != "" || c.Primary != "" || c.Secondary != "")
-                    total++;
-            ChannelSize = total;
+            ChannelChanged();
             OnPropertyChanged(nameof(Meter));
             Globals.Logger.LogInformation($"Meter {_meter.ID} now has {ChannelSize} channels for commissioning.");
         }
@@ -224,6 +253,7 @@ namespace WpfCommApp
             while(true)
             {
                 complete = true;
+                ChannelChanged();
                 foreach(Channel c in Meter.Channels)
                 {
                     if ((!string.IsNullOrEmpty(c.CTType) && (string.IsNullOrEmpty(c.Primary) || string.IsNullOrEmpty(c.Secondary))) ||

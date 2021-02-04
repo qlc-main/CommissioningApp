@@ -35,6 +35,8 @@ namespace WpfCommApp
 
             Current = this;
 
+            Dispatcher.ShutdownStarted += Dispatcher_ShutdownStarted;
+
 #if DEBUG
             System.Diagnostics.PresentationTraceSources.DataBindingSource.Switch.Level = System.Diagnostics.SourceLevels.Critical;
 #endif
@@ -63,6 +65,11 @@ namespace WpfCommApp
             }));
         }
 
+        private void Dispatcher_ShutdownStarted(object sender, EventArgs e)
+        {
+            (Current.DataContext as MainViewModel).Shutdown.Execute(null);
+        }
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             ((e.Source as MainWindow).DataContext as MainViewModel).ImportMeters.Execute(null);
@@ -72,5 +79,6 @@ namespace WpfCommApp
         {
             ((e.Source as MainWindow).DataContext as MainViewModel).ResizeControl.Execute(e);
         }
+
     }
 }

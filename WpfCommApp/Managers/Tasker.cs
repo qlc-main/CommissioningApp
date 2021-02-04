@@ -162,7 +162,7 @@ namespace WpfCommApp.Managers
         /// <param name="lineNumber">The line of code in the filename this message was logged from</param>
         private void LogError(Exception ex, string origin, string filePath, int lineNumber)
         {
-            Globals.Logger.Log($"An unexpected error occurred running a Tasker.Run. {ex.Message}", LogLevel.Debug, origin, filePath, lineNumber);
+            Globals.Logger.LogError($"An unexpected error occurred running a Tasker.Run. {ex.Message}", origin, filePath, lineNumber);
         }
 
         #endregion

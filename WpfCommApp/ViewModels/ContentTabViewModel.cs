@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace WpfCommApp
 {
@@ -25,9 +26,6 @@ namespace WpfCommApp
             {
                 if (_current != value)
                 {
-                    if (_current != null)
-                        Previous = _current;
-                    PageHandling(value);
                     _current = value;
                     OnPropertyChanged(nameof(CurrentPage));
                 }
@@ -40,16 +38,11 @@ namespace WpfCommApp
         { 
             get 
             {
-                if (CurrentPage != null)
-                    return CurrentPage.Name + (MeterSerialNo == "" ? "" : $" ({MeterSerialNo} on {SerialIdx})");
-                else
-                    return Previous.Name + (MeterSerialNo == "" ? "" : $" ({MeterSerialNo} on {SerialIdx})");
+                return CurrentPage.Name + (MeterSerialNo == "" ? "" : $" ({MeterSerialNo} on {SerialIdx})");
             } 
         }
 
         public List<IPageViewModel> Pages { get; }
-
-        public IPageViewModel Previous { get; private set; }
 
         public string SerialIdx;
 
@@ -111,6 +104,38 @@ namespace WpfCommApp
         #endregion
 
         #region Methods
+
+        public void StartAsync()
+        {
+            if (_current is ConfigurationViewModel)
+                (_current as ConfigurationViewModel).StartAsync.Execute(null);
+            else if (_current is CommissioningViewModel)
+                (_current as CommissioningViewModel).StartAsync.Execute(null);
+            else if (_current is ReviewViewModel)
+                (_current as ReviewViewModel).StartAsync.Execute(null);
+        }
+
+        public async Task StopAsync()
+        {
+            if (_current is ConfigurationViewModel)
+            {
+                (_current as ConfigurationViewModel).StopAsync.Execute(null);
+                while (!(_current as ConfigurationViewModel).AllFunctionsStopped)
+                    await Task.Delay(500);
+                }
+            else if (_current is CommissioningViewModel)
+            {
+                (_current as CommissioningViewModel).StopAsync.Execute(null);
+                while (!(_current as CommissioningViewModel).AllFunctionsStopped)
+                    await Task.Delay(500);
+            }
+            else if (_current is ReviewViewModel)
+            {
+                (_current as ReviewViewModel).StopAsync.Execute(null);
+                while (!(_current as ReviewViewModel).AllFunctionsStopped)
+                    await Task.Delay(500);
+            }
+        }
 
         /// <summary>
         /// Initiates/Stops the async processes for each meter associated with this 

@@ -12,17 +12,32 @@ namespace WpfCommApp
     {
         #region Fields
 
+        private bool _allFunctionsStopped;
         private bool _break;
         private bool _completed;
         private Dictionary<int, string> _dispositions;
         private string _id;
+        private Task _task;
 
         private ICommand _start;
-        private ICommand _stop;
+        private IAsyncCommand _stop;
 
         #endregion
 
         #region Properties
+
+        public bool AllFunctionsStopped
+        {
+            get { return _allFunctionsStopped; }
+            set
+            {
+                if (_allFunctionsStopped != value)
+                {
+                    _allFunctionsStopped = value;
+                    OnPropertyChanged(nameof(AllFunctionsStopped));
+                }
+            }
+        }
 
         public bool Completed
         {
@@ -94,7 +109,7 @@ namespace WpfCommApp
             get
             {
                 if (_stop == null)
-                    _stop = new RelayCommand(p => Stop());
+                    _stop = new AsyncRelayCommand(Stop);
 
                 return _stop;
             }
@@ -107,7 +122,7 @@ namespace WpfCommApp
         public ReviewViewModel(string id)
         {
             _id = id;
-            Meter = (Application.Current.Properties["meters"] as Dictionary<string, Meter>)[_id];
+            Meter = Globals.Meters[_id];
             _completed = false;
             CTTypes = (Application.Current.Properties["cttypes"] as string[]);
             _dispositions = (Application.Current.Properties["dispositions"] as Dictionary<string, int>).ToDictionary(x => x.Value, x => x.Key);
@@ -121,18 +136,26 @@ namespace WpfCommApp
 
         #region Public 
 
+        public async void Dispose()
+        {
+        }
+
         #endregion
 
         #region Private
 
         private void Start()
         {
-            Globals.Tasker.Run(Watcher);
+            _task = Globals.Tasker.Run(Watcher);
+            AllFunctionsStopped = false;
         }
 
-        private void Stop()
+        private async Task Stop()
         {
             _break = true;
+            while (!_task.IsCompleted)
+                await Task.Delay(500);
+            AllFunctionsStopped = true;
         }
 
         private async Task Watcher()

@@ -80,7 +80,7 @@ namespace WpfCommApp.Managers
 
         public void LogDebug(string message, [CallerMemberName] string origin = "", [CallerFilePath] string filePath = "", [CallerLineNumber] int lineNumber = 0)
         {
-            Log(message, LogLevel.Debug);
+            Log(message, LogLevel.Debug, origin, filePath, lineNumber);
         }
 
         public void LogInformation(string message, [CallerMemberName] string origin = "", [CallerFilePath] string filePath = "", [CallerLineNumber] int lineNumber = 0)
@@ -90,17 +90,17 @@ namespace WpfCommApp.Managers
 
         public void LogWarning(string message, [CallerMemberName] string origin = "", [CallerFilePath] string filePath = "", [CallerLineNumber] int lineNumber = 0)
         {
-            Log(message, LogLevel.Warning);
+            Log(message, LogLevel.Warning, origin, filePath, lineNumber);
         }
 
         public void LogError(string message, [CallerMemberName] string origin = "", [CallerFilePath] string filePath = "", [CallerLineNumber] int lineNumber = 0)
         {
-            Log(message, LogLevel.Error);
+            Log(message, LogLevel.Error, origin, filePath, lineNumber);
         }
 
         public void LogCritical(string message, [CallerMemberName] string origin = "", [CallerFilePath] string filePath = "", [CallerLineNumber] int lineNumber = 0)
         {
-            Log(message, LogLevel.Critical);
+            Log(message, LogLevel.Critical, origin, filePath, lineNumber);
         }
 
         #endregion

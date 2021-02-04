@@ -259,9 +259,6 @@ namespace WpfCommApp
 
         public void Save(string dir)
         {
-            if (!Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-
             var jsonSerializerSettings = new JsonSerializerSettings
             {
                 ContractResolver = new OrderedContractResolver(),
@@ -273,9 +270,6 @@ namespace WpfCommApp
 
         public void OldSave(string dir)
         {
-            if (!Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-
             StreamWriter sw = new StreamWriter(string.Format("{0}//{1}.txt", dir, _id));
             sw.WriteLine("S/N,Floor,Location,Size,PLC Verified,Disposition,FS Return,Opr Complete,Commissioned,Operation ID,Firmware,Notes");
             sw.WriteLine(string.Format($"{_id},{_floor},{_location},{Size},{(_plcVerified ? "Yes" : "No")},{_disposition},{(_fsReturn ? "1" : "0")},{(_oprComplete ? "1" : "0")},{(_commissioned ? "1" : "0")},{_operationID},{Firmware},{Notes}"));

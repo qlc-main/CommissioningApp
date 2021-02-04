@@ -79,7 +79,7 @@ namespace WpfCommApp
         {
             get
             {
-                var comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
+                var comms = Globals.Serials;
                 if (comms.ContainsKey(COMPORT))
                     return comms[COMPORT].IsOpen;
                 else
@@ -169,7 +169,7 @@ namespace WpfCommApp
         /// </summary>
         public async Task<string> CreateNewMeter()
         {
-            Dictionary<string, Meter> meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
+            Dictionary<string, Meter> meters = Globals.Meters;
 
             // Logs into meter and retrieves it's ID
             _id = await _serial.SetupSerial(_comPort);
@@ -321,6 +321,10 @@ namespace WpfCommApp
             return _id;
         }
 
+        public async void Dispose()
+        {
+        }
+
         #endregion
 
         #region Private
@@ -355,7 +359,7 @@ namespace WpfCommApp
             try
             {
                 IsBusy = true;
-                var comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
+                var comms = Globals.Serials;
                 var query = ComPorts.Select((value, index) => new { value, index })
                     .Where(x => x.value.Name == _comPort)
                     .Select(x => x.index)
@@ -402,7 +406,7 @@ namespace WpfCommApp
                     Thread t = new Thread(new ThreadStart(async () =>
                     {
                         InfoView info = null;
-                        InfoViewModel ifvm = new InfoViewModel(task, token, tokenSource, "Meter Serial Connection", "Connecting to Meter");
+                        InfoViewModel ifvm = new InfoViewModel(task, tokenSource, "Meter Serial Connection", "Connecting to Meter");
 
                         Application.Current.Dispatcher.Invoke(() =>
                         {
@@ -416,7 +420,7 @@ namespace WpfCommApp
                             info.Show();
                         });
 
-                        var monitor = await ifvm.Poll();
+                        var monitor = ifvm.Poll();
                         if (monitor)
                         {
                             // Close the window if the program has successfully re-established communication
@@ -455,7 +459,7 @@ namespace WpfCommApp
         private async Task EstablishSerial(CancellationToken token)
         {
             IsBusy = true;
-            Dictionary<string, SerialComm> comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
+            Dictionary<string, SerialComm> comms = Globals.Serials;
 
             if (!comms.ContainsKey(COMPORT))
             {

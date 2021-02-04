@@ -63,8 +63,8 @@
                                     ElementStyle="{StaticResource center}" HeaderStyle="{StaticResource centerHeader}" />
 
                 <DataGridComboBoxColumn Header="CT Type" ItemsSource="{Binding Data.CTTypes, Source={StaticResource proxy}}"
-                                        TextBinding="{Binding CTType, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HeaderStyle="{StaticResource centerHeader}"
-                                        ElementStyle="{StaticResource centerCB}" />
+                                        SelectedValueBinding="{Binding CTType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        HeaderStyle="{StaticResource centerHeader}" ElementStyle="{StaticResource centerCB}" />
 
                 <DataGridTextColumn Header="Primary" Binding="{Binding Primary, UpdateSourceTrigger=PropertyChanged}"
                                     HeaderStyle="{StaticResource centerHeader}" ElementStyle="{StaticResource center}" />

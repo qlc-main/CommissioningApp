@@ -9,6 +9,9 @@ namespace WpfCommApp
     public interface IPageViewModel
     {
         bool Completed { get; }
+
+        void Dispose();
+
         string Name { get; }
     }
 }

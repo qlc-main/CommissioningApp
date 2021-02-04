@@ -97,6 +97,10 @@ namespace WpfCommApp
 
         #region Public 
 
+        public async void Dispose()
+        {
+        }
+
         #endregion
 
         #region Private
@@ -112,16 +116,12 @@ namespace WpfCommApp
             HttpClient client = new HttpClient();
             string sid = null;
             string toUploadDir = String.Format("{0}\\ToUpload", Directory.GetCurrentDirectory());
+            string uploadedDir = String.Format("{0}\\Uploaded", Directory.GetCurrentDirectory());
             string logDir = String.Format("{0}\\ErrorLogs", Directory.GetCurrentDirectory());
             Dictionary<string, string> failedMeters = new Dictionary<string, string>(), infoMeters = new Dictionary<string, string>();
             Dictionary<string, string> operationToSite = new Dictionary<string, string>(), siteToCases = new Dictionary<string, string>();
             List<string> successMeters = new List<string>();
-            if (!Directory.Exists(logDir))
-                Directory.CreateDirectory(logDir);
 
-            string uploadedDir = String.Format("{0}\\Uploaded", Directory.GetCurrentDirectory());
-            if (!Directory.Exists(uploadedDir))
-                Directory.CreateDirectory(uploadedDir);
 
             // Logs into CRM using provided credentials and saves login token
             if (_ticket == null && !await Authenticate(client))
@@ -131,7 +131,7 @@ namespace WpfCommApp
             }
 
             // var service = CreateService();
-            Dictionary<string, Meter> metersToCommission = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
+            Dictionary<string, Meter> metersToCommission = Globals.Meters;
 
             // bhfwfquxf - FS Reports Table
             // bghhvi54m - Operations Table

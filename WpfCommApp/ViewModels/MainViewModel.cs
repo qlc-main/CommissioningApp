@@ -20,15 +20,17 @@ namespace WpfCommApp
         private bool _backwardEnabled;
         private bool _forwardEnabled;
         private bool _imported;
+        private string _toUploadDir = $@"{ Directory.GetCurrentDirectory() }\ToUpload";
 
-        private ICommand _backwardPage;
+        private IAsyncCommand _backwardPage;
         private ICommand _closeTab;
-        private ICommand _forwardPage;
+        private IAsyncCommand _forwardPage;
         private ICommand _importCommand;
         private ICommand _importMeters;
         private ICommand _openTab;
         private ICommand _resizeControl;
         private IAsyncCommand _saveCommand;
+        private ICommand _shutdown;
         private ICommand _uploadCommand;
 
         private ContentTabViewModel _current;
@@ -60,14 +62,8 @@ namespace WpfCommApp
             {
                 if (_current != value)
                 {
-                    _current.CurrentPage = null;
                     _current = value;
-
-                    if (_current.CurrentPage == null)
-                        _current.CurrentPage = _current.Previous;
-
                     OnPropertyChanged(nameof(CurrentTab));
-                    TabHandling();
                 }
             }
         }
@@ -110,7 +106,7 @@ namespace WpfCommApp
             get
             {
                 if (_backwardPage == null)
-                    _backwardPage = new RelayCommand(p => Backward());
+                    _backwardPage = new AsyncRelayCommand(Backward);
 
                 return _backwardPage;
             }
@@ -132,7 +128,7 @@ namespace WpfCommApp
             get
             {
                 if (_forwardPage == null)
-                    _forwardPage = new RelayCommand(p => Forward());
+                    _forwardPage = new AsyncRelayCommand(Forward);
 
                 return _forwardPage;
             }
@@ -193,6 +189,17 @@ namespace WpfCommApp
             }
         }
 
+        public ICommand Shutdown
+        {
+            get
+            {
+                if (_shutdown == null)
+                    _shutdown = new RelayCommand(p => Cleanup());
+
+                return _shutdown;
+            }
+        }
+
         public ICommand UploadCommand
         {
             get
@@ -213,8 +220,8 @@ namespace WpfCommApp
         /// </summary>
         public MainViewModel()
         {
-            Meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
-            Serial = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
+            Meters = Globals.Meters;
+            Serial = Globals.Serials;
             _tabs = new List<ContentTabViewModel>();
             _tabs.Add(new ContentTabViewModel());
             _current = _tabs[0];
@@ -240,10 +247,10 @@ namespace WpfCommApp
         /// menu tabs
         /// </summary>
         /// <param name="args"></param>
-        public void CloseTab(Tuple<string, string> args, bool complete = false)
+        public async Task CloseTab(Tuple<string, string> args, bool complete = false)
         {
             // Close the comm port if the complete arg is true
-            var comms = (Application.Current.Properties["serial"] as Dictionary<string, SerialComm>);
+            var comms = Globals.Serials;
             if (complete)
                 comms[args.Item1].Close();
 
@@ -268,11 +275,14 @@ namespace WpfCommApp
             else if (CurrentTab == tab)
             {
                 string id = CurrentTab.MeterSerialNo;
+                await CurrentTab.StopAsync();
                 CurrentTab = _tabs[idx - 1];
-                var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
+                CurrentTab.StartAsync();
+                ModifyNavigation();
+                var meters = Globals.Meters;
                 if (complete)
                     meters[id].Commissioned = true;
-                meters[id].Save(string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" }));
+                meters[id].Save(_toUploadDir);
             }
 
             ModifyTabs();
@@ -316,29 +326,28 @@ namespace WpfCommApp
             var tab = _tabs.Where(x => x.SerialIdx == objects.Item1 && x.MeterSerialNo == objects.Item2).FirstOrDefault();
             if (tab == null)
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                Application.Current.Dispatcher.Invoke(async () =>
                 {
                     _tabs.Add(new ContentTabViewModel(objects.Item1, objects.Item2));
+                    await CurrentTab.StopAsync();
                     CurrentTab = _tabs.Last();
+                    CurrentTab.StartAsync();
+                    ModifyNavigation();
                     ModifyTabs();
                 });
-
-                ForwardEnabled = false;
             }
             else
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                Application.Current.Dispatcher.Invoke(async () =>
                 {
                     tab.Visible = true;
+                    await CurrentTab.StopAsync();
                     CurrentTab = tab;
+                    CurrentTab.StartAsync();
+                    ModifyNavigation();
                     ModifyTabs();
                 });
-
-                if (CurrentTab.CurrentPage.Completed)
-                    ForwardEnabled = true;
             }
-
-            BackwardEnabled = true;
         }
 
         /// <summary>
@@ -357,6 +366,7 @@ namespace WpfCommApp
             // and change to Commissioning page
             if (Meters.ContainsKey(currSerialNo) && tabs.Count() == 1)
             {
+                await CurrentTab.StopAsync();
                 var tab = tabs.ElementAt(0);
                 CurrentTab = tab;
                 tab.Visible = true;
@@ -366,6 +376,7 @@ namespace WpfCommApp
             // and change to the Commissioning page
             else if (Meters.ContainsKey(currSerialNo))
             {
+                await CurrentTab.StopAsync();
                 CreateTab(new Tuple<string, string>(serialIdx, currSerialNo));
                 CurrentTab.CurrentPage = CurrentTab.Pages[1];
             }
@@ -390,9 +401,14 @@ namespace WpfCommApp
                     }
                 }
 
+                await CurrentTab.StopAsync();
                 CreateTab(new Tuple<string, string>(serialIdx, currSerialNo));
                 CurrentTab.CurrentPage = CurrentTab.Pages[1];
             }
+
+            // Initiate the async processes for the current page and modify navigation buttons
+            CurrentTab.StartAsync();
+            ModifyNavigation();
 
             // Modifies the collections that represent which tabs should be visible in the menu and which tabs
             // are present in the tab control for user interaction
@@ -409,7 +425,7 @@ namespace WpfCommApp
         /// <summary>
         /// Allows user to progress to a previous page or if at the first page, a previous tab
         /// </summary>
-        private void Backward()
+        private async Task Backward()
         {
             var pages = CurrentTab.Pages;
             var current = CurrentTab.CurrentPage;
@@ -418,27 +434,26 @@ namespace WpfCommApp
             // If not currently on first page for tab then go back one page
             if (idx > 0)
             {
+                await CurrentTab.StopAsync();
                 CurrentTab.CurrentPage = pages[idx - 1];
-                ForwardEnabled = true;
-                BackwardEnabled = true;
+                CurrentTab.StartAsync();
+                ModifyNavigation();
             }
             // If currently on first page of tab, then go back to the first tab
             // only if user is currently not on first tab
-            else
+            else if (CurrentTab.Name != "Serial Connection")
             {
-                if (CurrentTab.Name != "Serial Connection")
-                {
-                    CurrentTab = _tabs[0];
-                    ForwardEnabled = true;
-                    BackwardEnabled = false;
-                }
+                await CurrentTab.StopAsync();
+                CurrentTab = _tabs[0];
+                CurrentTab.StartAsync();
+                ModifyNavigation();
             }
         }
 
         /// <summary>
         /// Progresses the window forward one page or progresses user to different tab in tab control
         /// </summary>
-        private void Forward()
+        private async Task Forward()
         {
             // The first tab is a control tab thus it's forward operations are different
             if (_tabs.IndexOf(CurrentTab) == 0)
@@ -447,13 +462,10 @@ namespace WpfCommApp
                 // go to the next visible tab
                 if (_tabs.Where(x => x.Visible == true).Count() > 1)
                 {
+                    await CurrentTab.StopAsync();
                     CurrentTab = _tabs[1];
-
-                    var current = CurrentTab.CurrentPage;
-                    if (current.Completed)
-                        ForwardEnabled = true;
-                    else
-                        ForwardEnabled = false;
+                    CurrentTab.StartAsync();
+                    ModifyNavigation();
                 }
 
                 // If there are no other visible tabs then assuming that the user now wants to
@@ -466,11 +478,10 @@ namespace WpfCommApp
 
                     if (idx < pages.Count - 1)
                     {
+                        await CurrentTab.StopAsync();
                         CurrentTab.CurrentPage = pages[idx + 1];
-                        if (CurrentTab.CurrentPage.Completed)
-                            ForwardEnabled = true;
-                        else
-                            ForwardEnabled = false;
+                        CurrentTab.StartAsync();
+                        ModifyNavigation();
                     }
                 }
             }
@@ -485,20 +496,17 @@ namespace WpfCommApp
 
                 if (idx < pages.Count - 1)
                 {
+                    await CurrentTab.StopAsync();
                     CurrentTab.CurrentPage = pages[idx + 1];
-                    if (CurrentTab.CurrentPage.Completed)
-                        ForwardEnabled = true;
-                    else
-                        ForwardEnabled = false;
+                    CurrentTab.StartAsync();
+                    ModifyNavigation();
                 }
                 else
                 {
                     // Close this tab if we are finished commissioning this meter.
-                    CloseTab(new Tuple<string, string>(CurrentTab.SerialIdx, CurrentTab.MeterSerialNo), true);
+                    await CloseTab(new Tuple<string, string>(CurrentTab.SerialIdx, CurrentTab.MeterSerialNo), true);
                 }
             }
-
-            BackwardEnabled = true;
         }
 
         /// <summary>
@@ -506,26 +514,19 @@ namespace WpfCommApp
         /// </summary>
         private void Import()
         {
-            string dir = string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
-
             var importedFileCount = 0;
-            if (!Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-            else
+            foreach (string fileName in Directory.GetFiles(_toUploadDir))
             {
-                foreach (string fileName in Directory.GetFiles(dir))
-                {
-                    if (fileName.Contains("txt"))
-                        OldImportMeter(fileName);
-                    else
-                        ImportMeter(fileName);
+                if (fileName.Contains("txt"))
+                    OldImportMeter(fileName);
+                else
+                    ImportMeter(fileName);
 
-                    importedFileCount++;
-                }
+                importedFileCount++;
             }
 
             _imported = true;
-            Globals.Logger.LogInformation($"Imported {importedFileCount} files from {dir}");
+            Globals.Logger.LogInformation($"Imported {importedFileCount} files from {_toUploadDir}");
         }
 
         /// <summary>
@@ -546,7 +547,7 @@ namespace WpfCommApp
                     ImportMeter(fileName);
                     start = fileName.IndexOf("\\") + 1;
                     name = fileName.Substring(start);
-                    File.Move(fileName, string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload", name }));
+                    File.Move(fileName, $@"{_toUploadDir}\{name}");
                 }
         }
 
@@ -557,7 +558,7 @@ namespace WpfCommApp
         /// <param name="fileName">File location of meter data</param>
         private void ImportMeter(string fileName)
         {
-            var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
+            var meters = Globals.Meters;
             Meter m = new Meter();
             using (var sr = new StreamReader(fileName))
                 m = JsonConvert.DeserializeObject<Meter>(sr.ReadToEnd());
@@ -572,7 +573,7 @@ namespace WpfCommApp
         private void OldImportMeter(string fileName)
         {
             StreamReader sr = new StreamReader(fileName);
-            var meters = (Application.Current.Properties["meters"] as Dictionary<string, Meter>);
+            var meters = Globals.Meters;
             Meter m = new Meter();
             Channel c = null;
             string line;
@@ -663,20 +664,23 @@ namespace WpfCommApp
         private void ModifyTabs()
         {
             // Refreshes the filter for the two tab "types"
-            var curr = CurrentTab;
-            ListCollectionView lcv = (ListCollectionView)ViewVisibleTabs;
-            lcv.Filter = x => (x as ContentTabViewModel).Visible;
-            ListCollectionView mcv = (ListCollectionView)MenuVisibleTabs;
-            mcv.Filter = x => !(x as ContentTabViewModel).Visible;
-            if (CurrentTab != curr)
-                CurrentTab = curr;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var curr = CurrentTab;
+                ListCollectionView lcv = (ListCollectionView)ViewVisibleTabs;
+                lcv.Filter = x => (x as ContentTabViewModel).Visible;
+                ListCollectionView mcv = (ListCollectionView)MenuVisibleTabs;
+                mcv.Filter = x => !(x as ContentTabViewModel).Visible;
+                if (CurrentTab != curr)
+                    CurrentTab = curr;
+            });
         }
 
         /// <summary>
         /// Opens a tab once the user clicks on the tab from the menu 
         /// </summary>
         /// <param name="p"></param>
-        private void OpenTab(string p)
+        private async Task OpenTab(string p)
         {
             // Iterates over each tab and once the tab is located sets that tab
             // as the CurrentTab and changes it's visibility value as well as 
@@ -686,14 +690,36 @@ namespace WpfCommApp
             {
                 if (tab.MeterSerialNo == p)
                 {
+                    // Re-establish serial connection, if port is closed
+                    var comms = Globals.Serials;
+                    foreach (var comm in comms)
+                    {
+                        if (comm.Value.SerialNo == tab.MeterSerialNo)
+                        {
+                            if (!comm.Value.IsOpen)
+                                await comm.Value.SetupSerial(comm.Key);
+                            break;
+                        }
+                    }
+
+
+                    // Work on visual display for user
                     tab.Visible = true;
+                    await CurrentTab.StopAsync();
                     CurrentTab = tab;
+                    CurrentTab.StartAsync();
+                    ModifyNavigation();
                     ModifyTabs();
-                    return;
+                    break;
                 }
             }
         }
 
+        /// <summary>
+        /// Sets the font size for each meter tab depending on the
+        /// size of the window
+        /// </summary>
+        /// <param name="e"></param>
         private void PossiblyResizeControl(SizeChangedEventArgs e)
         {
             if (_tabs.Count > 0 /* && CurrentTab.Pages.IndexOf(CurrentTab.CurrentPage) == 1 */)
@@ -732,11 +758,8 @@ namespace WpfCommApp
         {
             // Creates the string for the directory that files will be written to, checks if the directory exists
             // if not the directory is created and then each meter is written to file
-            string dir = string.Join("\\", new string[] { Directory.GetCurrentDirectory(), "ToUpload" });
-            if (!Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-            foreach (KeyValuePair<string, Meter> kvp in (Application.Current.Properties["meters"] as Dictionary<string, Meter>))
-                kvp.Value.Save(dir);
+            foreach (KeyValuePair<string, Meter> kvp in Globals.Meters)
+                kvp.Value.Save(_toUploadDir);
 
             Globals.Logger.LogInformation("Saved all meters in memory to disk.");
         }
@@ -755,10 +778,36 @@ namespace WpfCommApp
         }
 
         /// <summary>
+        /// Methods to run to clean up the App before shutting down
+        /// </summary>
+        private void Cleanup()
+        {
+            foreach (var tab in _tabs)
+            {
+                foreach(var page in tab.Pages)
+                {
+                    page.Dispose();
+                }
+            }
+
+            foreach (var meter in Globals.Meters)
+            {
+                // meter.Value.Close();
+            }
+            Globals.Meters = null;
+
+            foreach (var serial in Globals.Serials)
+            {
+                serial.Value.Close();
+            }
+            Globals.Serials = null;
+        }
+
+        /// <summary>
         /// Used to start the upload to crm process if the meters have already been commissioned but an
         /// internet connection was not available on site
         /// </summary>
-        private void StartCRM()
+        private async Task StartCRM()
         {
             if (CurrentTab.Name == "Serial Connection")
             {
@@ -766,16 +815,46 @@ namespace WpfCommApp
                 var current = CurrentTab.CurrentPage;
                 var idx = pages.IndexOf(current);
 
+                await CurrentTab.StopAsync();
                 CurrentTab.CurrentPage = pages[idx + 1];
-                BackwardEnabled = true;
+                CurrentTab.StartAsync();
+                ModifyNavigation();
             }
         }
 
         /// <summary>
         /// Enables/Disables the Forward and Backward button when switching tabs
         /// </summary>
-        private void TabHandling()
+        private void ModifyNavigation()
         {
+            ForwardEnabled = false;
+            BackwardEnabled = false;
+            Task.Run(AsyncModifyNavigation);
+        }
+
+        /// <summary>
+        /// If on a meter tab, wait for the async processes to stop
+        /// before enabling the navigation buttons
+        /// </summary>
+        /// <returns></returns>
+        private async Task AsyncModifyNavigation()
+        {
+            // Wait to set navigation buttons if these pages have async tasks
+            if (_current.CurrentPage is ConfigurationViewModel ||
+                _current.CurrentPage is CommissioningViewModel ||
+                _current.CurrentPage is ReviewViewModel)
+            {
+                if (_current.CurrentPage is ConfigurationViewModel)
+                    while ((_current.CurrentPage as ConfigurationViewModel).AllFunctionsStopped)
+                        await Task.Delay(500);
+                else if (_current.CurrentPage is CommissioningViewModel)
+                    while ((_current.CurrentPage as CommissioningViewModel).AllFunctionsStopped)
+                        await Task.Delay(500);
+                if (_current.CurrentPage is ReviewViewModel)
+                    while ((_current.CurrentPage as ReviewViewModel).AllFunctionsStopped)
+                        await Task.Delay(500);
+            }
+
             // Send message to enable forward button, if current page for current tab marked as complete
             if (_current.CurrentPage.Completed)
                 ForwardEnabled = true;
